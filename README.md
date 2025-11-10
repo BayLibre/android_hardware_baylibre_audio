@@ -2,82 +2,100 @@
 
 ## Description
 
-Ce HAL audio AIDL générique est conçu pour être facilement adaptable à différentes plateformes (Amlogic, Rockchip, etc.). Il est basé sur l'implémentation de référence AOSP et a été modifié pour offrir plus de flexibilité.
+This generic AIDL audio HAL is designed to be easily adaptable to different platforms (Amlogic, Rockchip, etc.). It is based on the AOSP reference implementation and has been modified to offer more flexibility.
 
 ## Architecture
 
-Le HAL supporte plusieurs modules audio :
+The HAL supports multiple audio modules:
 
-- **Primary/ALSA** : Module principal utilisant ALSA pour l'audio de base
-- **USB** : Support des périphériques audio USB
-- **Bluetooth** : Support des casques et enceintes Bluetooth
-- **R_submix** : Capture audio système (remote submix)
-- **Stub** : Module de test/développement
+- **Primary/ALSA**: Main module using ALSA for basic audio
+- **USB**: USB audio device support
+- **Bluetooth**: Bluetooth headset and speaker support
+- **R_submix**: System audio capture (remote submix)
+- **Stub**: Test/development module
 
-## Utilisation multi-plateforme
+## Multi-platform Usage
 
-### Configuration par plateforme
+### Platform Configuration
 
-Pour adapter ce HAL à votre plateforme spécifique :
+To adapt this HAL to your specific platform:
 
-1. **Configuration audio policy** :
-   - Modifiez les fichiers XML dans `config/audioPolicy/` selon votre hardware
-   - Définissez vos périphériques audio, ports, et routes
+1. **Audio policy configuration**:
+   - Create audio_policy_configuration.xml according to your hardware
+   - Define your audio devices, ports, and routes
 
-2. **Configuration ALSA** :
-   - Les modules ALSA dans `alsa/` peuvent être adaptés pour votre carte son
-   - Modifiez les mixers et les configurations PCM selon vos besoins
+2. **ALSA configuration**:
+   - Configure ALSA card and device numbers via system properties
+   - Create mixer_controls.xml with your ALSA mixer control names
 
-3. **Modules optionnels** :
-   - Activez/désactivez les modules dans le fichier manifest VINTF selon vos besoins
-   - Commentez les modules non utilisés dans `android.hardware.audio.service-aidl.xml`
+3. **Optional modules**:
+   - Enable/disable modules in the VINTF manifest as needed
+   - Comment out unused modules in android.hardware.audio.service-aidl.baylibre.xml
 
-### Propriétés système
+### System Properties
 
-Le HAL peut être configuré via des propriétés système :
+The HAL can be configured via system properties:
 
-```
-# Exemples de propriétés (à définir dans votre build)
+```bash
+# ALSA card and device selection
+persist.vendor.audio.primary.card=0
 persist.vendor.audio.primary.device=0
-persist.vendor.audio.usb.enabled=true
-persist.vendor.audio.bluetooth.enabled=true
+
+# Mixer controls configuration file
+persist.vendor.audio.mixer.config=/vendor/etc/mixer_controls.xml
 ```
 
-### Build pour une plateforme spécifique
+### Build for a Specific Platform
 
-Dans votre fichier `device.mk` de plateforme :
+In your platform's `device.mk`:
 
 ```make
-# Inclure le HAL audio BayLibre
+# Include BayLibre Audio HAL
 PRODUCT_PACKAGES += \\
-    android.hardware.audio.service-aidl.baylibre \\
-    android.hardware.audio.effect.service-aidl.baylibre \\
-    android.hardware.audio.service-aidl.xml
+    com.android.hardware.audio.baylibre
 
-# Configuration audio policy spécifique à votre plateforme
+# Copy platform-specific mixer controls configuration
 PRODUCT_COPY_FILES += \\
-    device/yourvendor/yourdevice/audio/audio_policy_configuration.xml:$(TARGET_COPY_OUT_VENDOR)/etc/audio_policy_configuration.xml
+    device/yourvendor/yourdevice/audio/mixer_controls.xml:$(TARGET_COPY_OUT_VENDOR)/etc/mixer_controls.xml
+
+# Set system properties
+PRODUCT_PROPERTY_OVERRIDES += \\
+    persist.vendor.audio.primary.card=0
 ```
 
-## Structure des fichiers
+## File Structure
 
-- `main.cpp` : Point d'entrée du service audio
-- `Module.cpp` : Implémentation principale du module audio
-- `alsa/` : Implémentation ALSA générique
-- `bluetooth/` : Support Bluetooth
-- `usb/` : Support USB audio
-- `primary/` : Module audio principal
-- `r_submix/` : Remote submix
-- `stub/` : Module stub pour tests
-- `config/` : Fichiers de configuration XML
+- `main.cpp`: Audio service entry point
+- `Module.cpp`: Main audio module implementation
+- `alsa/`: Generic ALSA implementation
+- `bluetooth/`: Bluetooth support
+- `usb/`: USB audio support
+- `primary/`: Primary audio module
+- `r_submix/`: Remote submix
+- `stub/`: Stub module for testing
+- `config/`: XML configuration files
+- `*Effect*/`: Audio effect implementations
 
-## Adaptation à une nouvelle plateforme
+## Adaptation to a New Platform
 
-1. Créez une configuration audio policy XML pour votre plateforme
-2. Ajustez les paramètres ALSA (cartes, périphériques, mixers)
-3. Compilez le HAL avec votre configuration
-4. Testez avec `adb shell dumpsys media.audio_policy`
+1. Create an audio policy configuration XML for your platform
+2. Create a mixer_controls.xml with your ALSA control names
+3. Set system properties for ALSA card/device if not 0
+4. Build the HAL with your configuration
+5. Test with `adb shell dumpsys media.audio_policy`
+
+## Configuration
+
+See [CONFIGURATION.md](CONFIGURATION.md) for detailed configuration instructions.
+
+## Porting Guide
+
+See [PORTING.md](PORTING.md) for step-by-step platform porting instructions.
+
+## Mixer Controls
+
+See [MIXER_CONTROLS.md](MIXER_CONTROLS.md) for details on ALSA mixer control management.
 
 ## Support
 
-Pour toute question ou contribution, contactez l'équipe BayLibre.
+For questions or contributions, contact the BayLibre team.

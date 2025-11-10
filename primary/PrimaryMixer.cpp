@@ -16,9 +16,37 @@
 
 #define LOG_TAG "AHAL_PrimaryMixer"
 
+#include <android-base/logging.h>
+#include <android-base/properties.h>
+
 #include "PrimaryMixer.h"
 
 namespace aidl::android::hardware::audio::core::primary {
+
+// static
+int PrimaryMixer::getAlsaCard() {
+    // Read from system property, default to 0 if not set
+    int card = ::android::base::GetIntProperty("persist.vendor.audio.primary.card",
+                                                kDefaultAlsaCard);
+    LOG(DEBUG) << __func__ << ": Using ALSA card " << card
+               << " (from persist.vendor.audio.primary.card)";
+    return card;
+}
+
+// static
+int PrimaryMixer::getAlsaDevice() {
+    // Read from system property, default to 0 if not set
+    int device = ::android::base::GetIntProperty("persist.vendor.audio.primary.device",
+                                                  kDefaultAlsaDevice);
+    LOG(DEBUG) << __func__ << ": Using ALSA device " << device
+               << " (from persist.vendor.audio.primary.device)";
+    return device;
+}
+
+PrimaryMixer::PrimaryMixer() : alsa::Mixer(getAlsaCard()) {
+    LOG(INFO) << "PrimaryMixer initialized with card=" << getAlsaCard()
+              << " device=" << getAlsaDevice();
+}
 
 // static
 PrimaryMixer& PrimaryMixer::getInstance() {

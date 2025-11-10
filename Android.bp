@@ -1,15 +1,23 @@
+// BayLibre Generic Audio HAL - Minimal build file
+// This file only defines BayLibre-specific modules and reuses AOSP audio effect libraries
+
 package {
-    default_team: "trendy_team_android_media_audio_framework",
-    // See: http://go/android-license-faq
-    // A large-scale-change added 'default_applicable_licenses' to import
-    // all of the 'license_kinds' from "hardware_interfaces_license"
-    // to get the below license kinds:
-    //   SPDX-license-identifier-Apache-2.0
-    default_applicable_licenses: ["hardware_interfaces_license"],
+    default_applicable_licenses: ["hardware_baylibre_audio_license"],
+}
+
+license {
+    name: "hardware_baylibre_audio_license",
+    visibility: [":__subpackages__"],
+    license_kinds: [
+        "SPDX-license-identifier-Apache-2.0",
+    ],
+    license_text: [
+        "NOTICE",
+    ],
 }
 
 cc_defaults {
-    name: "aidlaudioservice_defaults",
+    name: "baylibre_aidlaudioservice_defaults",
     vendor: true,
     shared_libs: [
         "libalsautilsv2",
@@ -32,7 +40,7 @@ cc_defaults {
     ],
     header_libs: [
         "libaudio_system_headers",
-        "libaudioaidl_headers",
+        "libaudioaidl_headers_baylibre",
         "libxsdc-utils",
     ],
     cflags: [
@@ -43,7 +51,7 @@ cc_defaults {
 cc_library {
     name: "libaudioservicebaylibre",
     defaults: [
-        "aidlaudioservice_defaults",
+        "baylibre_aidlaudioservice_defaults",
         "latest_android_media_audio_common_types_ndk_shared",
         "latest_android_hardware_audio_core_ndk_shared",
         "latest_android_hardware_audio_core_sounddose_ndk_shared",
@@ -87,20 +95,21 @@ cc_library {
         "usb/StreamUsb.cpp",
         "usb/UsbAlsaMixerControl.cpp",
     ],
+    // Use AOSP audio policy configuration generators
     generated_sources: [
-        "audio_policy_capengine_configuration_aidl_default",
-        "audio_policy_configuration_aidl_default",
-        "audio_policy_engine_configuration_aidl_default",
+        "audio_policy_capengine_configuration_aidl_baylibre",
+        "audio_policy_configuration_aidl_baylibre",
+        "audio_policy_engine_configuration_aidl_baylibre",
     ],
     generated_headers: [
-        "audio_policy_capengine_configuration_aidl_default",
-        "audio_policy_configuration_aidl_default",
-        "audio_policy_engine_configuration_aidl_default",
+        "audio_policy_capengine_configuration_aidl_baylibre",
+        "audio_policy_configuration_aidl_baylibre",
+        "audio_policy_engine_configuration_aidl_baylibre",
     ],
     export_generated_headers: [
-        "audio_policy_capengine_configuration_aidl_default",
-        "audio_policy_configuration_aidl_default",
-        "audio_policy_engine_configuration_aidl_default",
+        "audio_policy_capengine_configuration_aidl_baylibre",
+        "audio_policy_configuration_aidl_baylibre",
+        "audio_policy_engine_configuration_aidl_baylibre",
     ],
     shared_libs: [
         "android.hardware.bluetooth.audio-impl",
@@ -111,6 +120,7 @@ cc_library {
         "libmedia_helper",
         "libmediautils_vendor",
         "libstagefright_foundation",
+        "libtinyxml2",
     ],
     export_shared_lib_headers: [
         "libaudio_aidl_conversion_common_ndk",
@@ -124,8 +134,42 @@ cc_library {
     ],
 }
 
+cc_binary {
+    name: "android.hardware.audio.service-aidl.baylibre",
+    relative_install_path: "hw",
+    defaults: [
+        "baylibre_aidlaudioservice_defaults",
+        "latest_android_hardware_audio_core_sounddose_ndk_shared",
+        "latest_android_hardware_audio_core_ndk_shared",
+        "latest_android_hardware_bluetooth_audio_ndk_shared",
+        "latest_android_media_audio_common_types_ndk_shared",
+    ],
+    static_libs: [
+        "libaudioservicebaylibre",
+    ],
+    shared_libs: [
+        "android.hardware.bluetooth.audio-impl",
+        "libaudio_aidl_conversion_common_ndk",
+        "libbluetooth_audio_session_aidl",
+        "liblog",
+        "libmedia_helper",
+        "libmediautils_vendor",
+        "libstagefright_foundation",
+        "libtinyxml2",
+    ],
+    srcs: ["main.cpp"],
+    cflags: [
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-Wthread-safety",
+        "-DBACKEND_NDK",
+    ],
+    installable: false, //installed in apex
+}
+
 cc_library {
-    name: "libeffectconfig",
+    name: "libeffectconfig_baylibre",
     srcs: [
         "EffectConfig.cpp",
     ],
@@ -145,7 +189,7 @@ cc_library {
     ],
     header_libs: [
         "libaudio_system_headers",
-        "libaudioaidl_headers",
+        "libaudioaidl_headers_baylibre",
     ],
     export_shared_lib_headers: [
         "libtinyxml2",
@@ -161,6 +205,7 @@ cc_library {
     ],
     vendor: true,
     host_supported: true,
+    visibility: [":__subpackages__", "//hardware/baylibre/audio/apex/com.android.hardware.audio"],
     target: {
         android: {
             shared_libs: [
@@ -170,128 +215,26 @@ cc_library {
     },
 }
 
-cc_binary {
-    name: "android.hardware.audio.service-aidl.baylibre",
-    relative_install_path: "hw",
-    defaults: [
-        "aidlaudioservice_defaults",
-        "latest_android_hardware_audio_core_sounddose_ndk_shared",
-        "latest_android_hardware_audio_core_ndk_shared",
-        "latest_android_hardware_bluetooth_audio_ndk_shared",
-        "latest_android_media_audio_common_types_ndk_shared",
+filegroup {
+    name: "effectCommonFile_baylibre",
+    srcs: [
+        "EffectContext.cpp",
+        "EffectThread.cpp",
+        "EffectImpl.cpp",
     ],
-    static_libs: [
-        "libaudioservicebaylibre",
-    ],
-    shared_libs: [
-        "android.hardware.bluetooth.audio-impl",
-        "libaudio_aidl_conversion_common_ndk",
-        "libbluetooth_audio_session_aidl",
-        "liblog",
-        "libmedia_helper",
-        "libstagefright_foundation",
-    ],
-    srcs: ["main.cpp"],
-    cflags: [
-        "-Wall",
-        "-Wextra",
-        "-Werror",
-        "-Wthread-safety",
-        "-DBACKEND_NDK",
-    ],
-    installable: false, //installed in apex com.android.hardware.audio
+    visibility: [":__subpackages__"],
 }
 
-cc_test {
-    name: "audio_policy_config_xml_converter_tests",
+cc_library_headers {
+    name: "libaudioaidl_headers_baylibre",
+    export_include_dirs: ["include"],
     vendor_available: true,
-    defaults: [
-        "latest_android_media_audio_common_types_ndk_static",
-        "latest_android_hardware_audio_core_ndk_static",
-    ],
-    shared_libs: [
-        "libaudio_aidl_conversion_common_ndk",
-        "libaudioaidlcommon",
-        "libaudioutils",
-        "libbase",
-        "libbinder_ndk",
-        "libcutils",
-        "libfmq",
-        "libmedia_helper",
-        "libstagefright_foundation",
-        "libutils",
-        "libxml2",
-    ],
-    header_libs: [
-        "libaudio_system_headers",
-        "libaudioaidl_headers",
-        "libxsdc-utils",
-    ],
-    generated_sources: [
-        "audio_policy_configuration_aidl_default",
-        "audio_policy_engine_configuration_aidl_default",
-    ],
-    generated_headers: [
-        "audio_policy_configuration_aidl_default",
-        "audio_policy_engine_configuration_aidl_default",
-    ],
-    srcs: [
-        "AudioPolicyConfigXmlConverter.cpp",
-        "tests/AudioPolicyConfigXmlConverterTest.cpp",
-    ],
-    cflags: [
-        "-Wall",
-        "-Wextra",
-        "-Werror",
-        "-Wthread-safety",
-        "-DBACKEND_NDK",
-    ],
-    test_suites: ["general-tests"],
-}
-
-cc_test {
-    name: "audio_alsa_utils_tests",
-    vendor_available: true,
-    defaults: [
-        "latest_android_media_audio_common_types_ndk_static",
-        "latest_android_hardware_audio_core_ndk_static",
-    ],
-    static_libs: [
-        "libalsautilsv2",
-        "libtinyalsav2",
-    ],
-    shared_libs: [
-        "libaudio_aidl_conversion_common_ndk",
-        "libaudioaidlcommon",
-        "libaudioutils",
-        "libbase",
-        "libbinder_ndk",
-        "libcutils",
-        "libfmq",
-        "libmedia_helper",
-        "libstagefright_foundation",
-        "libutils",
-    ],
-    header_libs: [
-        "libaudio_system_headers",
-        "libaudioaidl_headers",
-    ],
-    srcs: [
-        "alsa/Utils.cpp",
-        "tests/AlsaUtilsTest.cpp",
-    ],
-    cflags: [
-        "-Wall",
-        "-Wextra",
-        "-Werror",
-        "-Wthread-safety",
-        "-DBACKEND_NDK",
-    ],
-    test_suites: ["general-tests"],
+    host_supported: true,
+    visibility: [":__subpackages__"],
 }
 
 cc_defaults {
-    name: "aidlaudioeffectservice_defaults",
+    name: "baylibre_aidlaudioeffectservice_defaults",
     defaults: [
         "latest_android_media_audio_common_types_ndk_shared",
         "latest_android_hardware_audio_effect_ndk_shared",
@@ -311,7 +254,7 @@ cc_defaults {
         "android.hardware.common.fmq-V1-ndk",
     ],
     header_libs: [
-        "libaudioaidl_headers",
+        "libaudioaidl_headers_baylibre",
         "libaudio_system_headers",
         "libsystem_headers",
     ],
@@ -324,35 +267,19 @@ cc_defaults {
     ],
 }
 
-filegroup {
-    name: "effectCommonFile",
-    srcs: [
-        "EffectContext.cpp",
-        "EffectThread.cpp",
-        "EffectImpl.cpp",
-    ],
-}
-
 cc_binary {
     name: "android.hardware.audio.effect.service-aidl.baylibre",
     relative_install_path: "hw",
-    defaults: ["aidlaudioeffectservice_defaults"],
+    defaults: ["baylibre_aidlaudioeffectservice_defaults"],
     shared_libs: [
         "libapexsupport",
-        "libeffectconfig",
+        "libeffectconfig_baylibre",
     ],
     srcs: [
         "EffectFactory.cpp",
         "EffectMain.cpp",
     ],
-    installable: false, //installed in apex com.android.hardware.audio
-}
-
-cc_library_headers {
-    name: "libaudioaidl_headers",
-    export_include_dirs: ["include"],
-    vendor_available: true,
-    host_supported: true,
+    installable: false, //installed in apex
 }
 
 prebuilt_etc {
@@ -362,8 +289,9 @@ prebuilt_etc {
 }
 
 prebuilt_etc {
-    name: "android.hardware.audio.service-aidl.xml",
-    src: "android.hardware.audio.service-aidl.xml",
+    name: "android.hardware.audio.service-aidl.baylibre.xml",
+    src: "android.hardware.audio.service-aidl.baylibre.xml",
     sub_dir: "vintf",
     installable: false,
 }
+

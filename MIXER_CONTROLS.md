@@ -1,8 +1,8 @@
-# Gestion des contrôles Mixer ALSA dans le HAL Audio BayLibre
+# ALSA Mixer Controls Management in BayLibre Audio HAL
 
 ## Architecture
 
-Le HAL audio utilise une architecture en couches pour gérer les contrôles mixer ALSA (volume, mute, gain, etc.) :
+The audio HAL uses a layered architecture to manage ALSA mixer controls (volume, mute, gain, etc.):
 
 ```
 Android Framework (AudioManager, AudioService)
@@ -20,13 +20,13 @@ Android Framework (AudioManager, AudioService)
      ALSA Kernel Driver
 ```
 
-## Classes principales
+## Main Classes
 
 ### 1. `alsa::Mixer` (alsa/Mixer.h, alsa/Mixer.cpp)
 
-Classe de base qui encapsule l'accès aux contrôles mixer ALSA via TinyAlsa.
+Base class that encapsulates ALSA mixer control access via TinyAlsa.
 
-**Contrôles supportés :**
+**Supported Controls:**
 
 ```cpp
 enum Control {
@@ -38,122 +38,136 @@ enum Control {
 };
 ```
 
-**Mapping des noms de contrôles ALSA :**
+**ALSA Control Names Mapping:**
 
-Le HAL recherche automatiquement les contrôles ALSA par nom dans cet ordre :
+The HAL can load control names from an XML configuration file (`mixer_controls.xml`) or use built-in defaults:
 
+**Default mappings** (alsa/Mixer.cpp:48-58):
 ```cpp
-kPossibleControls = {
-    {MASTER_SWITCH, {{"Master Playback Switch", MIXER_CTL_TYPE_BOOL}}},
-    {MASTER_VOLUME, {{"Master Playback Volume", MIXER_CTL_TYPE_INT}}},
-    {HW_VOLUME, {
-        {"Headphone Playback Volume", MIXER_CTL_TYPE_INT},
-        {"Headset Playback Volume", MIXER_CTL_TYPE_INT},
-        {"PCM Playback Volume", MIXER_CTL_TYPE_INT}
-    }},
-    {MIC_SWITCH, {{"Capture Switch", MIXER_CTL_TYPE_BOOL}}},
-    {MIC_GAIN, {{"Capture Volume", MIXER_CTL_TYPE_INT}}}
-};
+{MASTER_SWITCH, {{"Master Playback Switch", MIXER_CTL_TYPE_BOOL}}},
+{MASTER_VOLUME, {{"Master Playback Volume", MIXER_CTL_TYPE_INT}}},
+{HW_VOLUME, {
+    {"Headphone Playback Volume", MIXER_CTL_TYPE_INT},
+    {"Headset Playback Volume", MIXER_CTL_TYPE_INT},
+    {"PCM Playback Volume", MIXER_CTL_TYPE_INT}
+}},
+{MIC_SWITCH, {{"Capture Switch", MIXER_CTL_TYPE_BOOL}}},
+{MIC_GAIN, {{"Capture Volume", MIXER_CTL_TYPE_INT}}}
 ```
 
-**API publique :**
+**Configuration via XML** (alsa/Mixer.cpp:63-153):
+
+The HAL loads control names from `/vendor/etc/mixer_controls.xml` at startup. If the file is not found or cannot be parsed, it falls back to the built-in defaults above.
+
+**Public API:**
 
 ```cpp
-// Volume master (0.0 à 1.0)
+// Master volume (0.0 to 1.0)
 ndk::ScopedAStatus setMasterVolume(float volume);
 ndk::ScopedAStatus getMasterVolume(float* volume);
 
-// Mute master
+// Master mute
 ndk::ScopedAStatus setMasterMute(bool muted);
 ndk::ScopedAStatus getMasterMute(bool* muted);
 
-// Gain microphone (0.0 à 1.0)
+// Microphone gain (0.0 to 1.0)
 ndk::ScopedAStatus setMicGain(float gain);
 ndk::ScopedAStatus getMicGain(float* gain);
 
-// Mute microphone
+// Microphone mute
 ndk::ScopedAStatus setMicMute(bool muted);
 ndk::ScopedAStatus getMicMute(bool* muted);
 
-// Volumes par canal
+// Per-channel volumes
 ndk::ScopedAStatus setVolumes(const std::vector<float>& volumes);
 ndk::ScopedAStatus getVolumes(std::vector<float>* volumes);
 ```
 
-**Conversion des valeurs :**
+**Value Conversion:**
 
-Le HAL effectue automatiquement les conversions :
-- Android utilise des valeurs float de 0.0 à 1.0
-- ALSA utilise des pourcentages de 0 à 100
-- Conversion : `percent = floor(volume * 100)`
+The HAL automatically converts between:
+- Android uses float values from 0.0 to 1.0
+- ALSA uses percentages from 0 to 100
+- Conversion: `percent = floor(volume * 100)`
 
-**Thread-safety :**
+**Thread-safety:**
 
-Tous les accès au mixer ALSA sont protégés par un mutex (`mMixerAccess`) car TinyAlsa n'est pas thread-safe.
+All ALSA mixer accesses are protected by a mutex (`mMixerAccess`) because TinyAlsa is not thread-safe.
 
 ### 2. `primary::PrimaryMixer` (primary/PrimaryMixer.h, primary/PrimaryMixer.cpp)
 
-Singleton qui hérite de `alsa::Mixer` pour le module audio primaire.
+Singleton that inherits from `alsa::Mixer` for the primary audio module.
 
 ```cpp
 class PrimaryMixer : public alsa::Mixer {
 public:
-    static constexpr int kAlsaCard = 0;    // Carte ALSA par défaut
-    static constexpr int kAlsaDevice = 0;  // Device ALSA par défaut
+    static constexpr int kDefaultAlsaCard = 0;
+    static constexpr int kDefaultAlsaDevice = 0;
 
     static PrimaryMixer& getInstance();
+    static int getAlsaCard();    // Reads persist.vendor.audio.primary.card
+    static int getAlsaDevice();  // Reads persist.vendor.audio.primary.device
 private:
-    PrimaryMixer() : alsa::Mixer(kAlsaCard) {}
+    PrimaryMixer();
 };
 ```
 
-**Utilisation :**
+**Configuration via Properties** (primary/PrimaryMixer.cpp:27-44):
+
+The mixer reads the ALSA card number from system property at initialization:
 
 ```cpp
-// Accès au mixer singleton
+int card = ::android::base::GetIntProperty("persist.vendor.audio.primary.card",
+                                            kDefaultAlsaCard);
+```
+
+**Usage:**
+
+```cpp
+// Access singleton mixer
 auto& mixer = primary::PrimaryMixer::getInstance();
 
-// Définir le volume master
+// Set master volume
 mixer.setMasterVolume(0.8f);  // 80%
 
-// Muter
+// Mute
 mixer.setMasterMute(true);
 ```
 
 ### 3. `Module` (Module.cpp, include/core-impl/Module.h)
 
-Le module audio AIDL expose les contrôles mixer au framework Android.
+The AIDL audio module exposes mixer controls to the Android framework.
 
-**Méthodes AIDL :**
+**AIDL Methods:**
 
 ```cpp
-// Implémentées dans Module.cpp
+// Implemented in Module.cpp:1459-1500
 ndk::ScopedAStatus getMasterMute(bool* _aidl_return);
 ndk::ScopedAStatus setMasterMute(bool in_mute);
 ndk::ScopedAStatus getMasterVolume(float* _aidl_return);
 ndk::ScopedAStatus setMasterVolume(float in_volume);
 ```
 
-**Mécanisme :**
+**Mechanism:**
 
-1. Le framework Android appelle `setMasterVolume()` via AIDL
-2. `Module::setMasterVolume()` :
-   - Valide la valeur (0.0 ≤ volume ≤ 1.0)
-   - Appelle la méthode virtuelle `onMasterVolumeChanged()`
-   - Stocke la valeur dans `mMasterVolume`
-3. Les classes dérivées (ModuleUsb, etc.) peuvent override `onMasterVolumeChanged()`
+1. Android framework calls `setMasterVolume()` via AIDL
+2. `Module::setMasterVolume()`:
+   - Validates value (0.0 ≤ volume ≤ 1.0)
+   - Calls virtual method `onMasterVolumeChanged()`
+   - Stores value in `mMasterVolume`
+3. Derived classes (ModuleUsb, etc.) can override `onMasterVolumeChanged()`
 
 ### 4. `StreamPrimary` (primary/StreamPrimary.cpp)
 
-Les streams audio utilisent aussi le mixer pour les contrôles par stream.
+Audio streams can also control mixer settings per-stream.
 
-**Gain microphone (input) :**
+**Microphone gain (input):**
 
 ```cpp
 ndk::ScopedAStatus StreamInPrimary::getHwGain(std::vector<float>* _aidl_return) {
     if (mHwGains.empty()) {
         float gain;
-        // Lire le gain depuis le mixer ALSA
+        // Read gain from ALSA mixer
         RETURN_STATUS_IF_ERROR(primary::PrimaryMixer::getInstance().getMicGain(&gain));
         _aidl_return->resize(mChannelCount, gain);
         RETURN_STATUS_IF_ERROR(setHwGainImpl(*_aidl_return));
@@ -163,12 +177,12 @@ ndk::ScopedAStatus StreamInPrimary::getHwGain(std::vector<float>* _aidl_return) 
 }
 
 ndk::ScopedAStatus StreamInPrimary::setHwGain(const std::vector<float>& in_channelGains) {
-    // Appliquer le gain au mixer ALSA
+    // Apply gain to ALSA mixer
     if (auto status = primary::PrimaryMixer::getInstance().setMicGain(in_channelGains[0]);
         !status.isOk()) {
         return status;
     }
-    // Vérifier la valeur effective (rounding)
+    // Verify effective value (rounding)
     float gain;
     RETURN_STATUS_IF_ERROR(primary::PrimaryMixer::getInstance().getMicGain(&gain));
     mHwGains.assign(mChannelCount, gain);
@@ -176,12 +190,12 @@ ndk::ScopedAStatus StreamInPrimary::setHwGain(const std::vector<float>& in_chann
 }
 ```
 
-**Volume hardware (output) :**
+**Hardware volume (output):**
 
 ```cpp
 ndk::ScopedAStatus StreamOutPrimary::setHwVolume(const std::vector<float>& in_channelVolumes) {
     RETURN_STATUS_IF_ERROR(setHwVolumeImpl(in_channelVolumes));
-    // Appliquer au mixer ALSA
+    // Apply to ALSA mixer
     if (auto status = primary::PrimaryMixer::getInstance().setVolumes(in_channelVolumes);
         !status.isOk()) {
         return status;
@@ -195,7 +209,7 @@ ndk::ScopedAStatus StreamOutPrimary::setHwVolume(const std::vector<float>& in_ch
 
 ### 5. `UsbAlsaMixerControl` (usb/UsbAlsaMixerControl.h, usb/UsbAlsaMixerControl.cpp)
 
-Gère les mixers pour plusieurs périphériques USB simultanément.
+Manages mixers for multiple USB devices simultaneously.
 
 ```cpp
 class UsbAlsaMixerControl {
@@ -211,120 +225,126 @@ private:
 };
 ```
 
-**Fonctionnement :**
+**Operation:**
 
-- Chaque carte USB a son propre mixer `alsa::Mixer(card)`
-- Lors de la connexion d'un device USB, un mixer est créé
-- Les changements de volume/mute sont appliqués à tous les mixers USB connectés
+- Each USB card has its own mixer `alsa::Mixer(card)`
+- When a USB device connects, a mixer is created
+- Volume/mute changes are applied to all connected USB mixers
 
-## Personnalisation par plateforme
+## Platform Customization
 
-### Adapter les noms de contrôles ALSA
+### Customize ALSA Control Names
 
-Si votre plateforme utilise des noms différents pour les contrôles mixer, vous devez modifier `alsa/Mixer.cpp` :
+Create a `mixer_controls.xml` file for your platform:
 
-```cpp
-// Exemple pour Amlogic avec contrôles spécifiques
-const std::map<Mixer::Control, std::vector<Mixer::ControlNamesAndExpectedCtlType>>
-        Mixer::kPossibleControls = {
-    {MASTER_SWITCH, {
-        {"Master Playback Switch", MIXER_CTL_TYPE_BOOL},
-        {"AIU HDMI Playback Switch", MIXER_CTL_TYPE_BOOL}  // Ajout Amlogic
-    }},
-    {MASTER_VOLUME, {
-        {"Master Playback Volume", MIXER_CTL_TYPE_INT},
-        {"AIU HDMI Playback Volume", MIXER_CTL_TYPE_INT}   // Ajout Amlogic
-    }},
-    // ...
-};
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<mixerControls>
+    <!-- Example for Amlogic with specific controls -->
+    <control function="MASTER_VOLUME" type="int">
+        <name>HDMI Playback Volume</name>
+        <name>TOHDMITX Playback Volume</name>
+        <name>Master Playback Volume</name>
+    </control>
+
+    <control function="MASTER_SWITCH" type="bool">
+        <name>TOHDMITX Switch</name>
+        <name>HDMI Playback Switch</name>
+    </control>
+    <!-- Add more controls -->
+</mixerControls>
 ```
 
-### Changer le numéro de carte ALSA par défaut
+Install in device.mk:
 
-Modifier `primary/PrimaryMixer.h` :
-
-```cpp
-class PrimaryMixer : public alsa::Mixer {
-public:
-    static constexpr int kAlsaCard = 0;    // Changer selon votre plateforme
-    static constexpr int kAlsaDevice = 0;
-    // ...
-};
+```make
+PRODUCT_COPY_FILES += \\
+    device/yourvendor/yourdevice/audio/mixer_controls.xml:$(TARGET_COPY_OUT_VENDOR)/etc/mixer_controls.xml
 ```
 
-Ou utiliser une propriété système (modification nécessaire) :
+### Change Default ALSA Card Number
 
-```cpp
-// Dans PrimaryMixer.cpp
-PrimaryMixer::PrimaryMixer()
-    : alsa::Mixer(android::base::GetIntProperty("persist.vendor.audio.primary.card", 0)) {
-}
+Use system properties (no code modification needed):
+
+```make
+# In device.mk
+PRODUCT_PROPERTY_OVERRIDES += \\
+    persist.vendor.audio.primary.card=1
+```
+
+Or set at runtime:
+
+```bash
+adb shell setprop persist.vendor.audio.primary.card 1
+adb shell stop vendor.audio-hal-aidl
+adb shell start vendor.audio-hal-aidl
 ```
 
 ## Debugging
 
-### Lister les contrôles mixer disponibles
+### List Available Mixer Controls
 
 ```bash
-adb shell tinymix -D 0  # Carte 0
-adb shell tinymix -D 1  # Carte 1
+adb shell tinymix -D 0  # Card 0
+adb shell tinymix -D 1  # Card 1
 ```
 
-### Obtenir/définir un contrôle
+### Get/Set a Control
 
 ```bash
-# Obtenir la valeur
+# Get value
 adb shell tinymix "Master Playback Volume"
 
-# Définir la valeur
+# Set value
 adb shell tinymix "Master Playback Volume" 80
 
 # Mute
 adb shell tinymix "Master Playback Switch" 0
 ```
 
-### Logs HAL
+### HAL Logs
 
 ```bash
 adb logcat -s AHAL_AlsaMixer:V AHAL_PrimaryMixer:V
 ```
 
-Les logs montrent :
-- Les contrôles mixer trouvés au démarrage
-- Les appels setMasterVolume/setMasterMute
-- Les erreurs d'accès aux contrôles
+Logs show:
+- Mixer controls found at startup
+- setMasterVolume/setMasterMute calls
+- Control access errors
 
 ### Test via AudioManager
 
 ```bash
 # Via adb
-adb shell media volume --stream 3 --set 10  # Volume à 10/15
+adb shell media volume --stream 3 --set 10  # Volume to 10/15
 
-# Via code Java/Kotlin
+# Via Java/Kotlin code
 AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
 am.setStreamVolume(AudioManager.STREAM_MUSIC, 10, 0);
 ```
 
-## Limitations actuelles
+## Current Limitations
 
-1. **Contrôles codés en dur** : Les noms de contrôles ALSA sont codés en dur. Pour ajouter de nouveaux contrôles, il faut modifier `kPossibleControls`.
+1. **Configurable control names**: Control names are now loaded from XML (mixer_controls.xml) with fallback to defaults.
 
-2. **Pas de routing mixer** : Le HAL ne gère pas les chemins de routing ALSA (mixer paths). Pour cela, il faut intégrer un gestionnaire de mixer paths (comme audio_route ou mixer_paths.xml).
+2. **No mixer routing**: The HAL doesn't manage ALSA mixer paths/routing. For that, integrate a mixer paths manager (like audio_route or mixer_paths.xml).
 
-3. **Volume par canal limité** : Le HAL applique le même volume à tous les canaux d'un contrôle multi-canal.
+3. **Limited per-channel volume**: The HAL applies the same volume to all channels of a multi-channel control.
 
-4. **Pas de courbe de volume** : Le HAL utilise une conversion linéaire (0-100%). Pour des courbes logarithmiques, il faut modifier les méthodes de conversion.
+4. **No volume curves**: The HAL uses linear conversion (0-100%). For logarithmic curves, modify the conversion methods.
 
-## Améliorations possibles
+## Possible Improvements
 
-1. **Fichier de configuration XML** pour les noms de contrôles
-2. **Support de mixer_paths.xml** pour le routing
-3. **Courbes de volume personnalisables**
-4. **Support des contrôles enum ALSA**
-5. **Propriétés système pour la carte ALSA par défaut**
+1. **Mixer routing support** via mixer_paths.xml
+2. **Custom volume curves** per platform
+3. **Support for ALSA enum controls**
+4. **Dynamic control discovery** (enumerate all controls at runtime)
+5. **Per-stream routing** configuration
 
-## Références
+## References
 
-- Code source : `alsa/Mixer.cpp`, `primary/PrimaryMixer.cpp`
-- TinyAlsa documentation : https://github.com/tinyalsa/tinyalsa
-- ALSA mixer API : https://www.alsa-project.org/alsa-doc/alsa-lib/group___mixer.html
+- Source code: `alsa/Mixer.cpp`, `primary/PrimaryMixer.cpp`
+- Configuration: [CONFIGURATION.md](CONFIGURATION.md)
+- TinyAlsa documentation: https://github.com/tinyalsa/tinyalsa
+- ALSA mixer API: https://www.alsa-project.org/alsa-doc/alsa-lib/group___mixer.html

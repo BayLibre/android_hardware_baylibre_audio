@@ -16,11 +16,14 @@
 
 #include <algorithm>
 #include <cmath>
+#include <fstream>
 
 #define LOG_TAG "AHAL_AlsaMixer"
 #include <android-base/logging.h>
+#include <android-base/properties.h>
 #include <android/binder_status.h>
 #include <error/expected_utils.h>
+#include <tinyxml2.h>
 
 #include "Mixer.h"
 
@@ -41,20 +44,121 @@ inline std::string errorToString(const ScopedAStatus& s) {
 namespace aidl::android::hardware::audio::core::alsa {
 
 // static
-const std::map<Mixer::Control, std::vector<Mixer::ControlNamesAndExpectedCtlType>>
-        Mixer::kPossibleControls = {
-                {Mixer::MASTER_SWITCH, {{"Master Playback Switch", MIXER_CTL_TYPE_BOOL}}},
-                {Mixer::MASTER_VOLUME, {{"Master Playback Volume", MIXER_CTL_TYPE_INT}}},
-                {Mixer::HW_VOLUME,
-                 {{"Headphone Playback Volume", MIXER_CTL_TYPE_INT},
-                  {"Headset Playback Volume", MIXER_CTL_TYPE_INT},
-                  {"PCM Playback Volume", MIXER_CTL_TYPE_INT}}},
-                {Mixer::MIC_SWITCH, {{"Capture Switch", MIXER_CTL_TYPE_BOOL}}},
-                {Mixer::MIC_GAIN, {{"Capture Volume", MIXER_CTL_TYPE_INT}}}};
+std::map<Mixer::Control, std::vector<Mixer::ControlNamesAndExpectedCtlType>>
+Mixer::getDefaultMixerControls() {
+    return {
+        {Mixer::MASTER_SWITCH, {{"Master Playback Switch", MIXER_CTL_TYPE_BOOL}}},
+        {Mixer::MASTER_VOLUME, {{"Master Playback Volume", MIXER_CTL_TYPE_INT}}},
+        {Mixer::HW_VOLUME,
+         {{"Headphone Playback Volume", MIXER_CTL_TYPE_INT},
+          {"Headset Playback Volume", MIXER_CTL_TYPE_INT},
+          {"PCM Playback Volume", MIXER_CTL_TYPE_INT}}},
+        {Mixer::MIC_SWITCH, {{"Capture Switch", MIXER_CTL_TYPE_BOOL}}},
+        {Mixer::MIC_GAIN, {{"Capture Volume", MIXER_CTL_TYPE_INT}}}
+    };
+}
+
+// static
+std::map<Mixer::Control, std::vector<Mixer::ControlNamesAndExpectedCtlType>>
+Mixer::loadMixerControlsConfig() {
+    // Check for custom config file location via system property
+    std::string configPath = ::android::base::GetProperty(
+        "persist.vendor.audio.mixer.config",
+        "/vendor/etc/mixer_controls.xml");
+
+    LOG(INFO) << __func__ << ": Loading mixer controls config from " << configPath;
+
+    std::map<Control, std::vector<ControlNamesAndExpectedCtlType>> controlsMap;
+
+    tinyxml2::XMLDocument doc;
+    if (doc.LoadFile(configPath.c_str()) != tinyxml2::XML_SUCCESS) {
+        LOG(WARNING) << __func__ << ": Failed to load " << configPath
+                     << ", using default controls";
+        return getDefaultMixerControls();
+    }
+
+    auto root = doc.FirstChildElement("mixerControls");
+    if (!root) {
+        LOG(ERROR) << __func__ << ": Invalid mixer_controls.xml format";
+        return getDefaultMixerControls();
+    }
+
+    for (auto* controlElement = root->FirstChildElement("control");
+         controlElement != nullptr;
+         controlElement = controlElement->NextSiblingElement("control")) {
+
+        const char* functionStr = controlElement->Attribute("function");
+        const char* typeStr = controlElement->Attribute("type");
+
+        if (!functionStr || !typeStr) {
+            LOG(WARNING) << __func__ << ": Skipping control without function or type";
+            continue;
+        }
+
+        // Map function string to Control enum
+        Control control;
+        if (strcmp(functionStr, "MASTER_VOLUME") == 0) {
+            control = MASTER_VOLUME;
+        } else if (strcmp(functionStr, "MASTER_SWITCH") == 0) {
+            control = MASTER_SWITCH;
+        } else if (strcmp(functionStr, "HW_VOLUME") == 0) {
+            control = HW_VOLUME;
+        } else if (strcmp(functionStr, "MIC_SWITCH") == 0) {
+            control = MIC_SWITCH;
+        } else if (strcmp(functionStr, "MIC_GAIN") == 0) {
+            control = MIC_GAIN;
+        } else {
+            LOG(WARNING) << __func__ << ": Unknown function: " << functionStr;
+            continue;
+        }
+
+        // Map type string to mixer_ctl_type
+        mixer_ctl_type ctlType;
+        if (strcmp(typeStr, "int") == 0) {
+            ctlType = MIXER_CTL_TYPE_INT;
+        } else if (strcmp(typeStr, "bool") == 0) {
+            ctlType = MIXER_CTL_TYPE_BOOL;
+        } else {
+            LOG(WARNING) << __func__ << ": Unknown type: " << typeStr;
+            continue;
+        }
+
+        // Collect all <name> elements for this control
+        std::vector<ControlNamesAndExpectedCtlType> names;
+        for (auto* nameElement = controlElement->FirstChildElement("name");
+             nameElement != nullptr;
+             nameElement = nameElement->NextSiblingElement("name")) {
+
+            const char* nameText = nameElement->GetText();
+            if (nameText) {
+                names.push_back({nameText, ctlType});
+                LOG(DEBUG) << __func__ << ": Added control name '" << nameText
+                          << "' for function " << functionStr;
+            }
+        }
+
+        if (!names.empty()) {
+            controlsMap[control] = names;
+        }
+    }
+
+    if (controlsMap.empty()) {
+        LOG(WARNING) << __func__ << ": No controls loaded from XML, using defaults";
+        return getDefaultMixerControls();
+    }
+
+    LOG(INFO) << __func__ << ": Successfully loaded " << controlsMap.size()
+              << " mixer control configurations";
+    return controlsMap;
+}
 
 // static
 Mixer::Controls Mixer::initializeMixerControls(struct mixer* mixer) {
     if (mixer == nullptr) return {};
+
+    // Load configuration (either from XML or defaults)
+    static const auto kPossibleControls = loadMixerControlsConfig();
+
     Controls mixerControls;
     std::string mixerCtlNames;
     for (const auto& [control, possibleCtls] : kPossibleControls) {

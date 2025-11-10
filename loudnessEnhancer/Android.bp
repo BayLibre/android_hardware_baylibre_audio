@@ -1,3 +1,7 @@
+package {
+    default_applicable_licenses: ["hardware_baylibre_audio_license"],
+}
+
 /*
  * Copyright (C) 2022 The Android Open Source Project
  *
@@ -14,27 +18,18 @@
  * limitations under the License.
  */
 
-package {
-    default_team: "trendy_team_android_media_audio_framework",
-    // See: http://go/android-license-faq
-    // A large-scale-change added 'default_applicable_licenses' to import
-    // all of the 'license_kinds' from "hardware_interfaces_license"
-    // to get the below license kinds:
-    //   SPDX-license-identifier-Apache-2.0
-    default_applicable_licenses: ["hardware_interfaces_license"],
-}
 
 cc_library_shared {
-    name: "libloudnessenhancersw",
+    name: "libloudnessenhancersw_baylibre",
     defaults: [
-        "aidlaudioeffectservice_defaults",
+        "baylibre_aidlaudioeffectservice_defaults",
     ],
     srcs: [
         "LoudnessEnhancerSw.cpp",
-        ":effectCommonFile",
+        ":effectCommonFile_baylibre",
     ],
     relative_install_path: "soundfx",
     visibility: [
-        "//hardware/interfaces/audio/aidl/default",
+        ":__subpackages__", "//hardware/baylibre/audio/apex/com.android.hardware.audio",
     ],
 }

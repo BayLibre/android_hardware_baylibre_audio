@@ -59,7 +59,7 @@ class StreamPrimary : public StreamAlsa {
     using AlsaDeviceId = std::pair<int, int>;
 
     static constexpr StreamPrimary::AlsaDeviceId kDefaultCardAndDeviceId{
-            primary::PrimaryMixer::kAlsaCard, primary::PrimaryMixer::kAlsaDevice};
+            primary::PrimaryMixer::kDefaultAlsaCard, primary::PrimaryMixer::kDefaultAlsaDevice};
     static constexpr StreamPrimary::AlsaDeviceId kStubDeviceId{
             primary::PrimaryMixer::kInvalidAlsaCard, primary::PrimaryMixer::kInvalidAlsaDevice};
 

@@ -1,12 +1,12 @@
-# Guide de portage du HAL Audio BayLibre
+# BayLibre Audio HAL Porting Guide
 
-Ce guide explique comment porter le HAL audio générique BayLibre sur une nouvelle plateforme.
+This guide explains how to port the BayLibre generic audio HAL to a new platform.
 
-## Étapes de portage
+## Porting Steps
 
-### 1. Identifier le matériel audio
+### 1. Identify Audio Hardware
 
-Sur votre device, identifiez les périphériques audio disponibles :
+On your device, identify available audio devices:
 
 ```bash
 adb shell cat /proc/asound/cards
@@ -14,30 +14,30 @@ adb shell cat /proc/asound/devices
 adb shell cat /proc/asound/pcm
 ```
 
-Notez les numéros de cartes et de périphériques pour chaque sortie/entrée audio.
+Note the card and device numbers for each audio output/input.
 
-### 2. Créer la configuration audio policy
+### 2. Create Audio Policy Configuration
 
-Créez un fichier `audio_policy_configuration.xml` pour votre plateforme dans votre device tree :
+Create an `audio_policy_configuration.xml` file for your platform in your device tree:
 
 ```
 device/yourvendor/yourdevice/audio/audio_policy_configuration.xml
 ```
 
-Structure de base :
+Basic structure:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <audioPolicyConfiguration>
     <modules>
-        <!-- Module primaire pour l'audio ALSA -->
+        <!-- Primary module for ALSA audio -->
         <module name="primary" halVersion="AIDL">
             <attachedDevices>
                 <item>Speaker</item>
                 <item>Built-In Mic</item>
             </attachedDevices>
             <devicePorts>
-                <!-- Définir vos périphériques audio ici -->
+                <!-- Define your audio devices here -->
                 <devicePort tagName="Speaker" type="AUDIO_DEVICE_OUT_SPEAKER" role="sink">
                     <profile name="" format="AUDIO_FORMAT_PCM_16_BIT"
                              samplingRates="48000" channelMasks="AUDIO_CHANNEL_OUT_STEREO"/>
@@ -47,7 +47,7 @@ Structure de base :
                              samplingRates="48000" channelMasks="AUDIO_CHANNEL_IN_STEREO"/>
                 </devicePort>
             </devicePorts>
-            <!-- Mixer ports (connections logiques) -->
+            <!-- Mixer ports (logical connections) -->
             <mixPorts>
                 <mixPort name="primary output" role="source" flags="AUDIO_OUTPUT_FLAG_PRIMARY">
                     <profile name="" format="AUDIO_FORMAT_PCM_16_BIT"
@@ -58,119 +58,236 @@ Structure de base :
                              samplingRates="48000" channelMasks="AUDIO_CHANNEL_IN_STEREO"/>
                 </mixPort>
             </mixPorts>
-            <!-- Routes (connexions entre mixer et devices) -->
+            <!-- Routes (connections between mixer and devices) -->
             <routes>
                 <route type="mix" sink="Speaker" sources="primary output"/>
                 <route type="mix" sink="primary input" sources="Built-In Mic"/>
             </routes>
         </module>
 
-        <!-- Modules optionnels -->
+        <!-- Optional modules -->
         <!-- USB Audio -->
         <xi:include href="usb_audio_policy_configuration.xml"/>
 
         <!-- Bluetooth -->
         <xi:include href="bluetooth_audio_policy_configuration.xml"/>
 
-        <!-- Remote Submix (pour capture système) -->
+        <!-- Remote Submix (for system capture) -->
         <xi:include href="r_submix_audio_policy_configuration.xml"/>
     </modules>
 </audioPolicyConfiguration>
 ```
 
-### 3. Adapter les paramètres ALSA
+### 3. Create Mixer Controls Configuration
 
-Si nécessaire, créez un fichier de configuration pour les chemins mixer ALSA :
+Identify your ALSA mixer control names:
 
+```bash
+adb shell tinymix -D 0
 ```
-device/yourvendor/yourdevice/audio/mixer_paths.xml
+
+Create `mixer_controls.xml` for your platform:
+
+```bash
+mkdir -p device/yourvendor/yourdevice/audio
 ```
 
-### 4. Configurer le device.mk
+Create the file with your control names:
 
-Dans votre `device.mk`, ajoutez :
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<mixerControls>
+    <control function="MASTER_VOLUME" type="int">
+        <name>Your Volume Control Name</name>
+        <name>Alternate Name If First Not Found</name>
+    </control>
+
+    <control function="MASTER_SWITCH" type="bool">
+        <name>Your Mute Control Name</name>
+    </control>
+
+    <control function="HW_VOLUME" type="int">
+        <name>Headphone Playback Volume</name>
+        <name>Speaker Playback Volume</name>
+    </control>
+
+    <control function="MIC_SWITCH" type="bool">
+        <name>Capture Switch</name>
+    </control>
+
+    <control function="MIC_GAIN" type="int">
+        <name>Capture Volume</name>
+    </control>
+</mixerControls>
+```
+
+See [CONFIGURATION.md](CONFIGURATION.md) for complete XML format documentation.
+
+### 4. Configure device.mk
+
+In your `device.mk`, add:
 
 ```make
 # Audio HAL
 PRODUCT_PACKAGES += \\
-    android.hardware.audio.service-aidl.baylibre \\
-    android.hardware.audio.effect.service-aidl.baylibre \\
-    android.hardware.audio.service-aidl.xml \\
-    audio.primary.$(TARGET_BOARD_PLATFORM)
+    com.android.hardware.audio.baylibre
 
-# Audio configuration
+# Audio configuration files
 PRODUCT_COPY_FILES += \\
     device/yourvendor/yourdevice/audio/audio_policy_configuration.xml:$(TARGET_COPY_OUT_VENDOR)/etc/audio_policy_configuration.xml \\
+    device/yourvendor/yourdevice/audio/mixer_controls.xml:$(TARGET_COPY_OUT_VENDOR)/etc/mixer_controls.xml \\
     frameworks/av/services/audiopolicy/config/audio_policy_volumes.xml:$(TARGET_COPY_OUT_VENDOR)/etc/audio_policy_volumes.xml \\
     frameworks/av/services/audiopolicy/config/default_volume_tables.xml:$(TARGET_COPY_OUT_VENDOR)/etc/default_volume_tables.xml \\
     frameworks/av/services/audiopolicy/config/r_submix_audio_policy_configuration.xml:$(TARGET_COPY_OUT_VENDOR)/etc/r_submix_audio_policy_configuration.xml \\
     frameworks/av/services/audiopolicy/config/usb_audio_policy_configuration.xml:$(TARGET_COPY_OUT_VENDOR)/etc/usb_audio_policy_configuration.xml \\
     frameworks/av/services/audiopolicy/config/bluetooth_audio_policy_configuration.xml:$(TARGET_COPY_OUT_VENDOR)/etc/bluetooth_audio_policy_configuration.xml
 
-# Audio properties (optionnel, voir platform_configs/)
--include hardware/baylibre/audio/platform_configs/yourplatform/platform_properties.mk
+# Set ALSA card if not 0 (optional)
+PRODUCT_PROPERTY_OVERRIDES += \\
+    persist.vendor.audio.primary.card=0
 ```
 
-### 5. Tester le HAL
+### 5. Test the HAL
 
-Après le build et le flash :
+After building and flashing:
 
 ```bash
-# Vérifier que le service audio est démarré
+# Check that audio service is started
 adb shell ps -A | grep audio
 
-# Vérifier la configuration chargée
+# Check loaded configuration
 adb shell dumpsys media.audio_policy
 
-# Tester la lecture audio
+# Test audio playback
 adb shell tinymix
 adb shell tinyplay /system/media/audio/alarms/Argon.ogg
 ```
 
-## Adaptation spécifique à la plateforme
+## Platform-Specific Adaptations
 
-### Amlogic
+### Amlogic Platforms
 
-Pour les SoCs Amlogic, référez-vous à `platform_configs/amlogic/` pour les propriétés recommandées.
+For Amlogic SoCs (S905, S912, etc.):
 
-Spécificités Amlogic :
-- Support SPDIF et HDMI audio
-- Cartes audio généralement nommées "AMLAUGESOUND" ou similaire
-- Périphériques audio multiples (I2S, SPDIF, HDMI)
+**Specifics:**
+- SPDIF and HDMI audio support
+- Audio cards typically named "AMLAUGESOUND" or similar
+- Multiple audio devices (I2S, SPDIF, HDMI)
+- Limited hardware mixer controls (volume often in software)
 
-### Rockchip
+**Example mixer_controls.xml:**
+```xml
+<mixerControls>
+    <control function="MASTER_VOLUME" type="int">
+        <name>HDMI Playback Volume</name>
+        <name>TOHDMITX Playback Volume</name>
+        <name>Master Playback Volume</name>
+    </control>
+    <!-- Add more controls based on tinymix output -->
+</mixerControls>
+```
 
-Pour les SoCs Rockchip, référez-vous à `platform_configs/rockchip/` pour les propriétés recommandées.
+### Rockchip Platforms
 
-Spécificités Rockchip :
-- Codecs audio variés (ES8316, RT5640, etc.)
-- Configuration HDMI audio via CEC
-- Support des cartes audio rockchip-sound
+For Rockchip SoCs (RK3399, RK3588, etc.):
+
+**Specifics:**
+- Various audio codecs (ES8316, RT5640, etc.)
+- HDMI audio configuration via CEC
+- Support for rockchip-sound cards
+
+**Example mixer_controls.xml:**
+```xml
+<mixerControls>
+    <control function="MASTER_VOLUME" type="int">
+        <name>Headphone Playback Volume</name>
+        <name>DAC Playback Volume</name>
+    </control>
+
+    <control function="MIC_GAIN" type="int">
+        <name>ADC Capture Volume</name>
+        <name>Mic Boost Volume</name>
+    </control>
+</mixerControls>
+```
 
 ## Debugging
 
-### Logs audio
+### Audio Logs
 
 ```bash
-adb logcat -s AudioHAL:V AHAL_Main:V audio_hw:V
+adb logcat -s AudioHAL:V AHAL_Main:V AHAL_AlsaMixer:V
 ```
 
-### Propriétés debug
+### Debug Properties
 
 ```bash
 adb shell setprop persist.vendor.audio.hal.debug true
 adb shell setprop log.tag.AudioHAL VERBOSE
 ```
 
-### Vérifier les périphériques ALSA
+### Check ALSA Devices
 
 ```bash
 adb shell cat /proc/asound/cards
 adb shell cat /proc/asound/pcm
-adb shell tinymix -D 0  # Liste les contrôles de la carte 0
+adb shell tinymix -D 0  # List controls for card 0
 ```
 
-## Support
+### Verify Configuration
 
-Pour toute question sur le portage, contactez l'équipe BayLibre ou consultez la documentation AOSP audio :
-https://source.android.com/docs/core/audio
+```bash
+# Check which mixer controls were found
+adb logcat -d | grep "AHAL_AlsaMixer.*available mixer control"
+
+# Check ALSA card/device being used
+adb logcat -d | grep "AHAL_PrimaryMixer.*initialized"
+
+# Check system properties
+adb shell getprop | grep persist.vendor.audio
+```
+
+## Common Issues
+
+### Issue: No audio output
+
+**Cause**: Wrong ALSA card or device selected
+
+**Solution**:
+```bash
+# Identify correct card
+adb shell cat /proc/asound/cards
+
+# Update property
+adb shell setprop persist.vendor.audio.primary.card <correct_number>
+
+# Restart HAL
+adb shell stop vendor.audio-hal-aidl
+adb shell start vendor.audio-hal-aidl
+```
+
+### Issue: Volume control not working
+
+**Cause**: Mixer control names don't match your hardware
+
+**Solution**:
+1. List available controls: `adb shell tinymix -D 0`
+2. Update mixer_controls.xml with correct names
+3. Rebuild and reflash
+4. Check logs to verify controls were found
+
+### Issue: HAL service crashes
+
+**Cause**: Missing audio_policy_configuration.xml or invalid format
+
+**Solution**:
+1. Check file exists: `adb shell ls -l /vendor/etc/audio_policy_configuration.xml`
+2. Validate XML syntax
+3. Check logcat for error messages: `adb logcat -s AHAL_Main:E`
+
+## See Also
+
+- [CONFIGURATION.md](CONFIGURATION.md) - Complete configuration reference
+- [MIXER_CONTROLS.md](MIXER_CONTROLS.md) - Mixer controls implementation details
+- [README.md](README.md) - HAL overview and architecture
+- AOSP Audio Documentation: https://source.android.com/docs/core/audio
