@@ -41,7 +41,7 @@ cc_defaults {
 }
 
 cc_library {
-    name: "libaudioserviceexampleimpl",
+    name: "libaudioservicebaylibre",
     defaults: [
         "aidlaudioservice_defaults",
         "latest_android_media_audio_common_types_ndk_shared",
@@ -171,7 +171,7 @@ cc_library {
 }
 
 cc_binary {
-    name: "android.hardware.audio.service-aidl.example",
+    name: "android.hardware.audio.service-aidl.baylibre",
     relative_install_path: "hw",
     defaults: [
         "aidlaudioservice_defaults",
@@ -181,7 +181,7 @@ cc_binary {
         "latest_android_media_audio_common_types_ndk_shared",
     ],
     static_libs: [
-        "libaudioserviceexampleimpl",
+        "libaudioservicebaylibre",
     ],
     shared_libs: [
         "android.hardware.bluetooth.audio-impl",
@@ -334,7 +334,7 @@ filegroup {
 }
 
 cc_binary {
-    name: "android.hardware.audio.effect.service-aidl.example",
+    name: "android.hardware.audio.effect.service-aidl.baylibre",
     relative_install_path: "hw",
     defaults: ["aidlaudioeffectservice_defaults"],
     shared_libs: [
@@ -356,8 +356,8 @@ cc_library_headers {
 }
 
 prebuilt_etc {
-    name: "android.hardware.audio.service-aidl.example.rc",
-    src: "android.hardware.audio.service-aidl.example.rc",
+    name: "android.hardware.audio.service-aidl.baylibre.rc",
+    src: "android.hardware.audio.service-aidl.baylibre.rc",
     installable: false,
 }
 
