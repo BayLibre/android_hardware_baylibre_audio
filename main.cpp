@@ -66,16 +66,24 @@ int main() {
     // Random values are used in the implementation.
     std::srand(std::time(nullptr));
 
-    // This is a debug implementation, always enable debug logging.
+    // BayLibre Generic Audio HAL
+    // This HAL is designed to be platform-agnostic and can be adapted to various SoCs
+    // (Amlogic, Rockchip, etc.) by providing appropriate audio policy configurations.
+    //
+    // Debug logging can be controlled via system properties:
+    // adb shell setprop persist.vendor.audio.hal.debug true
     android::base::SetMinimumLogSeverity(::android::base::DEBUG);
     // For more logs, use VERBOSE, however this may hinder performance.
     // android::base::SetMinimumLogSeverity(::android::base::VERBOSE);
     ABinderProcess_setThreadPoolMaxThreadCount(16);
     ABinderProcess_startThreadPool();
 
-    // Guaranteed log for b/210919187 and logd_integration_test
-    LOG(INFO) << "Init for Audio AIDL HAL";
+    LOG(INFO) << "Init for BayLibre Generic Audio AIDL HAL";
 
+    // Load audio policy configuration from platform-specific XML file
+    // The configuration file location can be customized per platform:
+    // - Default: /vendor/etc/audio_policy_configuration.xml
+    // - Override via: AUDIO_POLICY_CONFIG_FILE environment variable
     AudioPolicyConfigXmlConverter audioPolicyConverter{
             ::android::audio_get_audio_policy_config_file()};
 
@@ -88,13 +96,20 @@ int main() {
         LOG(ERROR) << "failed to register service for \"" << configFqn << "\"";
     }
 
-    // Make modules
+    // Instantiate audio modules based on the configuration
+    // Modules are loaded dynamically based on the audio policy configuration.
+    // Supported modules: primary (ALSA), usb, bluetooth, r_submix, stub
+    // Each module can be enabled/disabled via the audio policy XML configuration.
     std::vector<ChildInterface<Module>> moduleInstances;
     auto configs(audioPolicyConverter.releaseModuleConfigs());
     for (std::pair<std::string, std::unique_ptr<Module::Configuration>>& configPair : *configs) {
         std::string name = configPair.first;
+        LOG(INFO) << "Loading audio module: " << name;
         if (auto instance = createModule(name, std::move(configPair.second)); instance) {
             moduleInstances.push_back(std::move(instance));
+            LOG(INFO) << "Successfully loaded module: " << name;
+        } else {
+            LOG(WARNING) << "Failed to load module: " << name;
         }
     }
 
