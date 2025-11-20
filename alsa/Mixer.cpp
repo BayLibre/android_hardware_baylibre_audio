@@ -153,6 +153,92 @@ Mixer::loadMixerControlsConfig() {
 }
 
 // static
+void Mixer::applyInitControls(struct mixer* mixer, const std::string& configPath) {
+    if (mixer == nullptr) {
+        LOG(WARNING) << __func__ << ": Invalid mixer, skipping init controls";
+        return;
+    }
+
+    tinyxml2::XMLDocument doc;
+    if (doc.LoadFile(configPath.c_str()) != tinyxml2::XML_SUCCESS) {
+        LOG(DEBUG) << __func__ << ": No mixer config file at " << configPath;
+        return;
+    }
+
+    auto root = doc.FirstChildElement("mixerControls");
+    if (!root) {
+        return;
+    }
+
+    auto initElement = root->FirstChildElement("init");
+    if (!initElement) {
+        LOG(DEBUG) << __func__ << ": No <init> section in mixer config";
+        return;
+    }
+
+    LOG(INFO) << __func__ << ": Applying initialization controls from " << configPath;
+
+    for (auto* setElement = initElement->FirstChildElement("set");
+         setElement != nullptr;
+         setElement = setElement->NextSiblingElement("set")) {
+
+        const char* controlName = setElement->Attribute("name");
+        const char* controlValue = setElement->Attribute("value");
+
+        if (!controlName || !controlValue) {
+            LOG(WARNING) << __func__ << ": Skipping <set> without name or value";
+            continue;
+        }
+
+        auto* ctl = mixer_get_ctl_by_name(mixer, controlName);
+        if (!ctl) {
+            LOG(DEBUG) << __func__ << ": Control '" << controlName << "' not found, skipping";
+            continue;
+        }
+
+        enum mixer_ctl_type ctlType = mixer_ctl_get_type(ctl);
+        unsigned int numValues = mixer_ctl_get_num_values(ctl);
+
+        if (ctlType == MIXER_CTL_TYPE_BOOL || ctlType == MIXER_CTL_TYPE_INT) {
+            // Parse comma-separated integer values
+            std::string valueStr(controlValue);
+            size_t pos = 0;
+            unsigned int idx = 0;
+
+            while (idx < numValues) {
+                size_t comma = valueStr.find(',', pos);
+                std::string token = (comma == std::string::npos)
+                                            ? valueStr.substr(pos)
+                                            : valueStr.substr(pos, comma - pos);
+
+                int value = std::atoi(token.c_str());
+                if (mixer_ctl_set_value(ctl, idx, value) != 0) {
+                    LOG(WARNING) << __func__ << ": Failed to set " << controlName
+                                 << "[" << idx << "] = " << value;
+                }
+
+                if (comma == std::string::npos) break;
+                pos = comma + 1;
+                idx++;
+            }
+            LOG(DEBUG) << __func__ << ": Set '" << controlName << "' = " << controlValue;
+
+        } else if (ctlType == MIXER_CTL_TYPE_ENUM) {
+            if (mixer_ctl_set_enum_by_string(ctl, controlValue) != 0) {
+                LOG(WARNING) << __func__ << ": Failed to set enum " << controlName
+                             << " = " << controlValue;
+            } else {
+                LOG(DEBUG) << __func__ << ": Set enum '" << controlName << "' = " << controlValue;
+            }
+        } else {
+            LOG(DEBUG) << __func__ << ": Unsupported control type for " << controlName;
+        }
+    }
+
+    LOG(INFO) << __func__ << ": Initialization controls applied successfully";
+}
+
+// static
 Mixer::Controls Mixer::initializeMixerControls(struct mixer* mixer) {
     if (mixer == nullptr) return {};
 
@@ -202,6 +288,12 @@ std::ostream& operator<<(std::ostream& s, Mixer::Control c) {
 Mixer::Mixer(int card) : mMixer(mixer_open(card)), mMixerControls(initializeMixerControls(mMixer)) {
     if (!isValid()) {
         PLOG(ERROR) << __func__ << ": failed to open mixer for card=" << card;
+    } else {
+        // Apply initialization controls from mixer_controls.xml
+        std::string configPath = ::android::base::GetProperty(
+            "persist.vendor.audio.mixer.config",
+            "/vendor/etc/mixer_controls.xml");
+        applyInitControls(mMixer, configPath);
     }
 }
 

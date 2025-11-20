@@ -21,6 +21,7 @@
 #include <android-base/logging.h>
 
 #include "core-impl/ModulePrimary.h"
+#include "primary/PrimaryMixer.h"
 #include "core-impl/StreamMmapStub.h"
 #include "core-impl/StreamOffloadStub.h"
 #include "core-impl/StreamPrimary.h"
@@ -41,6 +42,12 @@ using aidl::android::media::audio::common::AudioPortExt;
 using aidl::android::media::audio::common::MicrophoneInfo;
 
 namespace aidl::android::hardware::audio::core {
+
+ModulePrimary::ModulePrimary(std::unique_ptr<Configuration>&& config)
+    : Module(Type::DEFAULT, std::move(config)) {
+    // Force PrimaryMixer initialization to apply mixer controls at boot
+    (void)primary::PrimaryMixer::getInstance();
+}
 
 ndk::ScopedAStatus ModulePrimary::getTelephony(std::shared_ptr<ITelephony>* _aidl_return) {
     if (!mTelephony) {
