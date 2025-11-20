@@ -28,24 +28,24 @@
          name of a library .so file on the target device.
     -->
     <libraries>
-        <library name="aecsw" path="libaecsw_baylibre.so"/>
-        <library name="agc1sw" path="libagc1sw_baylibre.so"/>
-        <library name="agc2sw" path="libagc2sw_baylibre.so"/>
-        <library name="bassboostsw" path="libbassboostsw_baylibre.so"/>
-        <library name="downmix" path="libdownmixsw_baylibre.so"/>
-        <library name="dynamics_processing" path="libdynamicsprocessingsw_baylibre.so"/>
-        <library name="equalizersw" path="libequalizersw_baylibre.so"/>
-        <library name="erasersw" path="liberasersw_baylibre.so"/>
-        <library name="haptic_generator" path="libhapticgeneratorsw_baylibre.so"/>
-        <library name="loudness_enhancer" path="libloudnessenhancersw_baylibre.so"/>
-        <library name="nssw" path="libnssw_baylibre.so"/>
-        <library name="env_reverbsw" path="libenvreverbsw_baylibre.so"/>
-        <library name="preset_reverbsw" path="libpresetreverbsw_baylibre.so"/>
-        <library name="virtualizersw" path="libvirtualizersw_baylibre.so"/>
-        <library name="visualizer" path="libvisualizersw_baylibre.so"/>
-        <library name="volumesw" path="libvolumesw_baylibre.so"/>
-        <library name="extensioneffect" path="libextensioneffect_baylibre.so"/>
-        <library name="spatializersw" path="libspatializersw_baylibre.so"/>
+        <library name="aecsw" path="libaecsw_generic.so"/>
+        <library name="agc1sw" path="libagc1sw_generic.so"/>
+        <library name="agc2sw" path="libagc2sw_generic.so"/>
+        <library name="bassboostsw" path="libbassboostsw_generic.so"/>
+        <library name="downmix" path="libdownmixsw_generic.so"/>
+        <library name="dynamics_processing" path="libdynamicsprocessingsw_generic.so"/>
+        <library name="equalizersw" path="libequalizersw_generic.so"/>
+        <library name="erasersw" path="liberasersw_generic.so"/>
+        <library name="haptic_generator" path="libhapticgeneratorsw_generic.so"/>
+        <library name="loudness_enhancer" path="libloudnessenhancersw_generic.so"/>
+        <library name="nssw" path="libnssw_generic.so"/>
+        <library name="env_reverbsw" path="libenvreverbsw_generic.so"/>
+        <library name="preset_reverbsw" path="libpresetreverbsw_generic.so"/>
+        <library name="virtualizersw" path="libvirtualizersw_generic.so"/>
+        <library name="visualizer" path="libvisualizersw_generic.so"/>
+        <library name="volumesw" path="libvolumesw_generic.so"/>
+        <library name="extensioneffect" path="libextensioneffect_generic.so"/>
+        <library name="spatializersw" path="libspatializersw_generic.so"/>
     </libraries>
 
     <!-- list of effects to load.

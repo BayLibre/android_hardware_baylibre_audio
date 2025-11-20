@@ -1,10 +1,10 @@
 package {
-    default_applicable_licenses: ["hardware_baylibre_audio_license"],
+    default_applicable_licenses: ["hardware_generic_audio_license"],
 }
 
 
 xsd_config {
-    name: "audio_policy_configuration_aidl_baylibre",
+    name: "audio_policy_configuration_aidl_generic",
     srcs: ["audio_policy_configuration.xsd"],
     package_name: "android.audio.policy.configuration",
     nullability: true,

@@ -1,5 +1,5 @@
 package {
-    default_applicable_licenses: ["hardware_baylibre_audio_license"],
+    default_applicable_licenses: ["hardware_generic_audio_license"],
 }
 
 /*
@@ -20,16 +20,17 @@ package {
 
 
 cc_library_shared {
-    name: "libhapticgeneratorsw_baylibre",
+    name: "libhapticgeneratorsw_generic",
     defaults: [
-        "baylibre_aidlaudioeffectservice_defaults",
+        "generic_aidlaudioeffectservice_defaults",
     ],
     srcs: [
         "HapticGeneratorSw.cpp",
-        ":effectCommonFile_baylibre",
+        ":effectCommonFile_generic",
     ],
     relative_install_path: "soundfx",
     visibility: [
-        ":__subpackages__", "//hardware/baylibre/audio/apex/com.android.hardware.audio",
+        "//hardware/amlogic/yukawa/audio/apex/com.android.hardware.audio",
+        ":__subpackages__", "//hardware/generic/audio/apex/com.android.hardware.audio",
     ],
 }

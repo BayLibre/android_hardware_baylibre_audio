@@ -1,5 +1,5 @@
 package {
-    default_applicable_licenses: ["hardware_baylibre_audio_license"],
+    default_applicable_licenses: ["hardware_generic_audio_license"],
 }
 
 /*
@@ -20,16 +20,16 @@ package {
 
 
 cc_library_shared {
-    name: "libspatializersw_baylibre",
+    name: "libspatializersw_generic",
     defaults: [
-        "baylibre_aidlaudioeffectservice_defaults",
+        "generic_aidlaudioeffectservice_defaults",
     ],
     srcs: [
         "SpatializerSw.cpp",
-        ":effectCommonFile_baylibre",
+        ":effectCommonFile_generic",
     ],
     relative_install_path: "soundfx",
     visibility: [
-        "//hardware/baylibre/audio:__subpackages__",
+        "//hardware/amlogic/yukawa/audio/apex/com.android.hardware.audio",
     ],
 }
