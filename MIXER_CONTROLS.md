@@ -258,7 +258,7 @@ Create a `mixer_controls.xml` file for your platform:
 Install in device.mk:
 
 ```make
-PRODUCT_COPY_FILES += \\
+PRODUCT_COPY_FILES += \
     device/yourvendor/yourdevice/audio/mixer_controls.xml:$(TARGET_COPY_OUT_VENDOR)/etc/mixer_controls.xml
 ```
 
@@ -268,7 +268,7 @@ Use system properties (no code modification needed):
 
 ```make
 # In device.mk
-PRODUCT_PROPERTY_OVERRIDES += \\
+PRODUCT_PROPERTY_OVERRIDES += \
     persist.vendor.audio.primary.card=1
 ```
 

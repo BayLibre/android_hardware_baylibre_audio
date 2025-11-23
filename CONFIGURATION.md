@@ -109,16 +109,16 @@ Define your audio devices, ports, and routes. See [PORTING.md](PORTING.md) for e
 
 ```make
 # Audio HAL package
-PRODUCT_PACKAGES += \\
+PRODUCT_PACKAGES += \
     com.android.hardware.audio.baylibre
 
 # Audio configuration files
-PRODUCT_COPY_FILES += \\
-    device/yourvendor/yourdevice/audio/mixer_controls.xml:$(TARGET_COPY_OUT_VENDOR)/etc/mixer_controls.xml \\
+PRODUCT_COPY_FILES += \
+    device/yourvendor/yourdevice/audio/mixer_controls.xml:$(TARGET_COPY_OUT_VENDOR)/etc/mixer_controls.xml \
     device/yourvendor/yourdevice/audio/audio_policy_configuration.xml:$(TARGET_COPY_OUT_VENDOR)/etc/audio_policy_configuration.xml
 
 # Set ALSA card if not 0 (optional)
-PRODUCT_PROPERTY_OVERRIDES += \\
+PRODUCT_PROPERTY_OVERRIDES += \
     persist.vendor.audio.primary.card=0
 ```
 
@@ -264,10 +264,10 @@ You can have different configurations for different device variants:
 ```make
 # In your device.mk
 ifeq ($(TARGET_PRODUCT),mydevice_hdmi)
-    PRODUCT_COPY_FILES += \\
+    PRODUCT_COPY_FILES += \
         device/myvendor/mydevice/audio/mixer_controls_hdmi.xml:$(TARGET_COPY_OUT_VENDOR)/etc/mixer_controls.xml
 else
-    PRODUCT_COPY_FILES += \\
+    PRODUCT_COPY_FILES += \
         device/myvendor/mydevice/audio/mixer_controls_default.xml:$(TARGET_COPY_OUT_VENDOR)/etc/mixer_controls.xml
 endif
 ```
@@ -295,10 +295,10 @@ You can set properties conditionally based on product variant:
 ```make
 # In device.mk
 ifeq ($(TARGET_BOARD_PLATFORM),amlogic)
-    PRODUCT_PROPERTY_OVERRIDES += \\
+    PRODUCT_PROPERTY_OVERRIDES += \
         persist.vendor.audio.primary.card=0
 else ifeq ($(TARGET_BOARD_PLATFORM),rockchip)
-    PRODUCT_PROPERTY_OVERRIDES += \\
+    PRODUCT_PROPERTY_OVERRIDES += \
         persist.vendor.audio.primary.card=1
 endif
 ```

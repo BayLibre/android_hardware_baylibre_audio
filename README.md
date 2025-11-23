@@ -51,15 +51,15 @@ In your platform's `device.mk`:
 
 ```make
 # Include BayLibre Audio HAL
-PRODUCT_PACKAGES += \\
+PRODUCT_PACKAGES += \
     com.android.hardware.audio.baylibre
 
 # Copy platform-specific mixer controls configuration
-PRODUCT_COPY_FILES += \\
+PRODUCT_COPY_FILES += \
     device/yourvendor/yourdevice/audio/mixer_controls.xml:$(TARGET_COPY_OUT_VENDOR)/etc/mixer_controls.xml
 
 # Set system properties
-PRODUCT_PROPERTY_OVERRIDES += \\
+PRODUCT_PROPERTY_OVERRIDES += \
     persist.vendor.audio.primary.card=0
 ```
 
