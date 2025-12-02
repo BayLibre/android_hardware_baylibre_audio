@@ -8,6 +8,23 @@ The HAL supports several system properties for runtime configuration:
 
 ### ALSA Card and Device Selection
 
+The HAL supports two methods for selecting the ALSA card:
+
+#### Method 1: Card Name (Recommended)
+
+Use the card name for dynamic detection. This handles USB devices changing card indices:
+
+```bash
+# Set the primary ALSA card name (searches /proc/asound/cards)
+adb shell setprop persist.vendor.audio.primary.card_name G12BKHADASVIM3L
+```
+
+The HAL will search `/proc/asound/cards` for a card matching the specified name (partial match supported). This is useful when USB devices may take different card indices on each boot.
+
+#### Method 2: Card Index (Fallback)
+
+Use a fixed card index:
+
 ```bash
 # Set the primary ALSA card number (default: 0)
 adb shell setprop persist.vendor.audio.primary.card 1
@@ -16,12 +33,30 @@ adb shell setprop persist.vendor.audio.primary.card 1
 adb shell setprop persist.vendor.audio.primary.device 0
 ```
 
+**Priority**: If `card_name` is set, the HAL will try to find the card by name first. If not found (or not set), it falls back to the `card` index.
+
 These properties are read once when the HAL service starts. To apply changes:
 
 ```bash
 adb shell stop vendor.audio-hal-aidl
 adb shell start vendor.audio-hal-aidl
 ```
+
+#### Finding Your Card Name
+
+```bash
+adb shell cat /proc/asound/cards
+```
+
+Example output:
+```
+ 0 [U0x46d0x81b    ]: USB-Audio - USB Device 0x46d:0x81b
+                      USB Device 0x46d:0x81b at usb-xhci-hcd.1.auto-1.1.2
+ 1 [G12BKHADASVIM3L]: axg-sound-card - G12B-KHADAS-VIM3L
+                      G12B-KHADAS-VIM3L
+```
+
+The name in brackets (e.g., `G12BKHADASVIM3L`) is what you should use for `card_name`.
 
 ### Mixer Controls Configuration File
 
@@ -117,9 +152,13 @@ PRODUCT_COPY_FILES += \
     device/yourvendor/yourdevice/audio/mixer_controls.xml:$(TARGET_COPY_OUT_VENDOR)/etc/mixer_controls.xml \
     device/yourvendor/yourdevice/audio/audio_policy_configuration.xml:$(TARGET_COPY_OUT_VENDOR)/etc/audio_policy_configuration.xml
 
-# Set ALSA card if not 0 (optional)
+# Set ALSA card (choose ONE method):
+# Method 1: By name (recommended - handles USB devices changing indices)
 PRODUCT_PROPERTY_OVERRIDES += \
-    persist.vendor.audio.primary.card=0
+    persist.vendor.audio.primary.card_name=YOUR_CARD_NAME
+# Method 2: By index (fallback if name not set)
+# PRODUCT_PROPERTY_OVERRIDES += \
+#     persist.vendor.audio.primary.card=0
 ```
 
 ## Configuration Examples
@@ -224,7 +263,15 @@ adb shell cat /proc/asound/cards
 adb shell cat /proc/asound/devices
 ```
 
-Set the correct card number:
+Option 1 - Use card name (recommended if USB devices are present):
+```bash
+# Find the card name in brackets, e.g., [G12BKHADASVIM3L]
+adb shell setprop persist.vendor.audio.primary.card_name G12BKHADASVIM3L
+adb shell stop vendor.audio-hal-aidl
+adb shell start vendor.audio-hal-aidl
+```
+
+Option 2 - Use card index:
 ```bash
 adb shell setprop persist.vendor.audio.primary.card <correct_number>
 adb shell stop vendor.audio-hal-aidl

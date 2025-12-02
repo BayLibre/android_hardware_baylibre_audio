@@ -16,6 +16,9 @@
 
 #define LOG_TAG "AHAL_PrimaryMixer"
 
+#include <fstream>
+#include <regex>
+
 #include <android-base/logging.h>
 #include <android-base/properties.h>
 
@@ -24,8 +27,59 @@
 namespace aidl::android::hardware::audio::core::primary {
 
 // static
+int PrimaryMixer::findAlsaCardByName(const std::string& cardName) {
+    // Parse /proc/asound/cards to find card by name
+    // Format: " 0 [AMLAUGESOUND   ]: driver - longname"
+    std::ifstream cardsFile("/proc/asound/cards");
+    if (!cardsFile.is_open()) {
+        LOG(WARNING) << __func__ << ": Cannot open /proc/asound/cards";
+        return kInvalidAlsaCard;
+    }
+
+    std::string line;
+    // Regex to match card line: whitespace, card number, space, [name], colon
+    std::regex cardRegex(R"(^\s*(\d+)\s+\[([^\]]+)\])");
+
+    while (std::getline(cardsFile, line)) {
+        std::smatch match;
+        if (std::regex_search(line, match, cardRegex)) {
+            int cardNum = std::stoi(match[1].str());
+            std::string name = match[2].str();
+            // Trim trailing whitespace from name
+            name.erase(name.find_last_not_of(" \t") + 1);
+
+            LOG(DEBUG) << __func__ << ": Found card " << cardNum << " name='" << name << "'";
+
+            if (name.find(cardName) != std::string::npos) {
+                LOG(INFO) << __func__ << ": Matched card " << cardNum
+                          << " for requested name '" << cardName << "'";
+                return cardNum;
+            }
+        }
+    }
+
+    LOG(WARNING) << __func__ << ": Card with name '" << cardName << "' not found";
+    return kInvalidAlsaCard;
+}
+
+// static
 int PrimaryMixer::getAlsaCard() {
-    // Read from system property, default to 0 if not set
+    // First, try to find card by name if specified
+    std::string cardName = ::android::base::GetProperty(
+        "persist.vendor.audio.primary.card_name", "");
+
+    if (!cardName.empty()) {
+        int card = findAlsaCardByName(cardName);
+        if (card != kInvalidAlsaCard) {
+            LOG(INFO) << __func__ << ": Using ALSA card " << card
+                      << " (found by name '" << cardName << "')";
+            return card;
+        }
+        LOG(WARNING) << __func__ << ": Card name '" << cardName
+                     << "' not found, falling back to card index";
+    }
+
+    // Fall back to card index from property
     int card = ::android::base::GetIntProperty("persist.vendor.audio.primary.card",
                                                 kDefaultAlsaCard);
     LOG(DEBUG) << __func__ << ": Using ALSA card " << card

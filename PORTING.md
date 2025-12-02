@@ -142,9 +142,13 @@ PRODUCT_COPY_FILES += \
     frameworks/av/services/audiopolicy/config/usb_audio_policy_configuration.xml:$(TARGET_COPY_OUT_VENDOR)/etc/usb_audio_policy_configuration.xml \
     frameworks/av/services/audiopolicy/config/bluetooth_audio_policy_configuration.xml:$(TARGET_COPY_OUT_VENDOR)/etc/bluetooth_audio_policy_configuration.xml
 
-# Set ALSA card if not 0 (optional)
+# Set ALSA card (choose ONE method):
+# Method 1: By name (recommended - handles USB devices changing indices)
 PRODUCT_PROPERTY_OVERRIDES += \
-    persist.vendor.audio.primary.card=0
+    persist.vendor.audio.primary.card_name=YOUR_CARD_NAME
+# Method 2: By index (fallback if name not set)
+# PRODUCT_PROPERTY_OVERRIDES += \
+#     persist.vendor.audio.primary.card=0
 ```
 
 ### 5. Test the HAL
@@ -167,23 +171,51 @@ adb shell tinyplay /system/media/audio/alarms/Argon.ogg
 
 ### Amlogic Platforms
 
-For Amlogic SoCs (S905, S912, etc.):
+For Amlogic SoCs (S905, S912, G12A, G12B, SM1, etc.):
 
 **Specifics:**
 - SPDIF and HDMI audio support
-- Audio cards typically named "AMLAUGESOUND" or similar
+- Audio card names vary by board:
+  - Khadas VIM3: `KHADASVIM3`
+  - Khadas VIM3L: `G12BKHADASVIM3L`
+  - Generic boards: `AMLAUGESOUND` or similar
 - Multiple audio devices (I2S, SPDIF, HDMI)
 - Limited hardware mixer controls (volume often in software)
+- HDMI routing done via TOHDMITX mixer controls
 
-**Example mixer_controls.xml:**
+**Card detection by name (recommended for boards with USB devices):**
+
+When USB devices are present (cameras, audio interfaces), they may take card 0 and push the Amlogic audio to a different index. Use card name detection to automatically find the correct card:
+
+```make
+# In audio_properties.mk
+ifeq ($(TARGET_DEV_BOARD), vim3l)
+    AUDIO_CARD_NAME := G12BKHADASVIM3L
+else
+    AUDIO_CARD_NAME := KHADASVIM3
+endif
+
+PRODUCT_PROPERTY_OVERRIDES += \
+    persist.vendor.audio.primary.card_name=$(AUDIO_CARD_NAME)
+```
+
+**Example mixer_controls.xml for HDMI output:**
 ```xml
 <mixerControls>
-    <control function="MASTER_VOLUME" type="int">
-        <name>HDMI Playback Volume</name>
-        <name>TOHDMITX Playback Volume</name>
-        <name>Master Playback Volume</name>
+    <control function="MASTER_SWITCH" type="bool">
+        <name>TOHDMITX Switch</name>
     </control>
-    <!-- Add more controls based on tinymix output -->
+
+    <!-- Init section for HDMI audio routing -->
+    <init>
+        <set name="TOHDMITX Switch" value="1"/>
+        <set name="TOHDMITX I2S SRC" value="I2S A"/>
+        <set name="TDMOUT_A SRC SEL" value="IN 0"/>
+        <set name="FRDDR_A SRC 1 EN Switch" value="1"/>
+        <set name="FRDDR_A SINK 1 SEL" value="OUT 0"/>
+        <set name="TDMOUT_A Lane 0 Volume" value="255,255"/>
+        <set name="TDMOUT_A Gain Enable Switch" value="1"/>
+    </init>
 </mixerControls>
 ```
 
@@ -251,9 +283,23 @@ adb shell getprop | grep persist.vendor.audio
 
 ### Issue: No audio output
 
-**Cause**: Wrong ALSA card or device selected
+**Cause**: Wrong ALSA card or device selected (often due to USB devices taking card 0)
 
-**Solution**:
+**Solution 1 - Use card name detection (recommended)**:
+```bash
+# Find your card name
+adb shell cat /proc/asound/cards
+# Example output: 1 [G12BKHADASVIM3L]: axg-sound-card - G12B-KHADAS-VIM3L
+
+# Set card name property
+adb shell setprop persist.vendor.audio.primary.card_name G12BKHADASVIM3L
+
+# Restart HAL
+adb shell stop vendor.audio-hal-aidl
+adb shell start vendor.audio-hal-aidl
+```
+
+**Solution 2 - Use card index**:
 ```bash
 # Identify correct card
 adb shell cat /proc/asound/cards
