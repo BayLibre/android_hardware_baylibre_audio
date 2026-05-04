@@ -135,6 +135,15 @@ ndk::ScopedAStatus StreamSwitcher::removeEffect(const std::shared_ptr<IEffect>& 
     return !mIsStubStream ? mStream->removeEffect(in_effect) : ndk::ScopedAStatus::ok();
 }
 
+ndk::ScopedAStatus StreamSwitcher::createMmapBuffer(MmapBufferDescriptor* _aidl_return) {
+    if (mStream == nullptr) {
+        LOG(ERROR) << __func__ << ": stream was closed";
+        return ndk::ScopedAStatus::fromExceptionCode(EX_ILLEGAL_STATE);
+    }
+    return !mIsStubStream ? mStream->createMmapBuffer(_aidl_return)
+                          : ndk::ScopedAStatus::fromExceptionCode(EX_UNSUPPORTED_OPERATION);
+}
+
 ndk::ScopedAStatus StreamSwitcher::getStreamCommonCommon(
         std::shared_ptr<IStreamCommon>* _aidl_return) {
     if (!mCommon) {
