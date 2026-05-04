@@ -107,21 +107,17 @@ std::vector<std::reference_wrapper<const tinyxml2::XMLElement>> EffectConfig::ge
 
 bool EffectConfig::resolveLibrary(const std::string& path, std::string* resolvedPath) {
 #ifdef __ANDROID_APEX__
-    if constexpr (__ANDROID_VENDOR_API__ >= 202404) {
-        AApexInfo *apexInfo;
-        if (AApexInfo_create(&apexInfo) == AAPEXINFO_OK) {
-            std::string apexName(AApexInfo_getName(apexInfo));
-            AApexInfo_destroy(apexInfo);
-            std::string candidatePath("/apex/");
-            candidatePath.append(apexName).append(kEffectLibApexPath).append(path);
-            LOG(DEBUG) << __func__ << " effect lib path " << candidatePath;
-            if (access(candidatePath.c_str(), R_OK) == 0) {
-                *resolvedPath = std::move(candidatePath);
-                return true;
-            }
+    AApexInfo *apexInfo;
+    if (AApexInfo_create(&apexInfo) == AAPEXINFO_OK) {
+        std::string apexName(AApexInfo_getName(apexInfo));
+        AApexInfo_destroy(apexInfo);
+        std::string candidatePath("/apex/");
+        candidatePath.append(apexName).append(kEffectLibApexPath).append(path);
+        LOG(DEBUG) << __func__ << " effect lib path " << candidatePath;
+        if (access(candidatePath.c_str(), R_OK) == 0) {
+            *resolvedPath = std::move(candidatePath);
+            return true;
         }
-    } else {
-        LOG(DEBUG) << __func__ << " libapexsupport is not supported";
     }
 #endif
 
