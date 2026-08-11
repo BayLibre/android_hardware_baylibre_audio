@@ -62,8 +62,10 @@ class Mixer {
     using Controls = std::map<Control, struct mixer_ctl*>;
 
     friend std::ostream& operator<<(std::ostream&, Control);
-    static const std::map<Control, std::vector<ControlNamesAndExpectedCtlType>> kPossibleControls;
+    static std::map<Control, std::vector<ControlNamesAndExpectedCtlType>> loadMixerControlsConfig();
+    static std::map<Control, std::vector<ControlNamesAndExpectedCtlType>> getDefaultMixerControls();
     static Controls initializeMixerControls(struct mixer* mixer);
+    static void applyInitControls(struct mixer* mixer, const std::string& configPath);
 
     ndk::ScopedAStatus findControl(Control ctl, struct mixer_ctl** result);
     ndk::ScopedAStatus getMixerControlMute(Control ctl, bool* muted);

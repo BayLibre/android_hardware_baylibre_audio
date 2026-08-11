@@ -163,8 +163,10 @@ ndk::ScopedAStatus StreamPrimary::setConnectedDevices(const ConnectedDevices& de
 }
 
 std::vector<alsa::DeviceProfile> StreamPrimary::getDeviceProfiles() {
-    return {alsa::DeviceProfile{.card = mCurrAlsaDeviceId.first,
-                                .device = mCurrAlsaDeviceId.second,
+    // The card and device to open come from the properties read by PrimaryMixer,
+    // not from the compiled-in default device id.
+    return {alsa::DeviceProfile{.card = primary::PrimaryMixer::getAlsaCard(),
+                                .device = primary::PrimaryMixer::getAlsaDevice(),
                                 .direction = mIsInput ? PCM_IN : PCM_OUT,
                                 .isExternal = false}};
 }

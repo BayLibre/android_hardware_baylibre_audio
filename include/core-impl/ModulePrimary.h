@@ -22,8 +22,7 @@ namespace aidl::android::hardware::audio::core {
 
 class ModulePrimary final : public Module {
   public:
-    ModulePrimary(std::unique_ptr<Configuration>&& config)
-        : Module(Type::DEFAULT, std::move(config)) {}
+    explicit ModulePrimary(std::unique_ptr<Configuration>&& config);
 
     ndk::ScopedAStatus getFlushFromFrameSupport(
             const ::aidl::android::media::audio::common::AudioPortConfig& in_config,
@@ -55,6 +54,7 @@ class ModulePrimary final : public Module {
 
   private:
     ChildInterface<ITelephony> mTelephony;
+    int32_t mStandardLatencyMs;
 };
 
 }  // namespace aidl::android::hardware::audio::core

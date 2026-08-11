@@ -19,6 +19,7 @@
 #define LOG_TAG "AHAL_ModulePrimary"
 #include <Log.h>
 #include <Utils.h>
+#include <android-base/properties.h>
 
 #include "core-impl/Configuration.h"
 #include "core-impl/ModulePrimary.h"
@@ -27,6 +28,7 @@
 #include "core-impl/StreamPrimary.h"
 #include "core-impl/StreamStub.h"
 #include "core-impl/Telephony.h"
+#include "primary/PrimaryMixer.h"
 
 using aidl::android::hardware::audio::common::areAllBitPositionFlagsSet;
 using aidl::android::hardware::audio::common::hasMmapFlag;
@@ -44,6 +46,20 @@ using aidl::android::media::audio::common::FlushFromFrameSupport;
 using aidl::android::media::audio::common::MicrophoneInfo;
 
 namespace aidl::android::hardware::audio::core {
+
+ModulePrimary::ModulePrimary(std::unique_ptr<Configuration>&& config)
+    : Module(Type::DEFAULT, std::move(config)) {
+    // Instantiating the mixer here applies the boot-time mixer control values
+    // from the mixer controls config before any stream is opened.
+    (void)primary::PrimaryMixer::getInstance();
+
+    // 85 ms is chosen considering 4096 frames @ 48 kHz. This is the value which allows
+    // the virtual Android device implementation to pass CTS. Hardware implementations
+    // should have significantly lower latency.
+    mStandardLatencyMs = ::android::base::GetIntProperty(
+            "persist.vendor.audio.primary.latency_ms",
+            ::android::base::GetIntProperty("ro.vendor.audio.primary.latency_ms", 85));
+}
 
 ndk::ScopedAStatus ModulePrimary::getTelephony(std::shared_ptr<ITelephony>* _aidl_return) {
     if (!mTelephony) {
@@ -151,11 +167,7 @@ ndk::ScopedAStatus ModulePrimary::createMmapBuffer(const AudioPortConfig& portCo
 
 int32_t ModulePrimary::getNominalLatencyMs(const AudioPortConfig& portConfig) {
     static constexpr int32_t kLowLatencyMs = 10;
-    // 85 ms is chosen considering 4096 frames @ 48 kHz. This is the value which allows
-    // the virtual Android device implementation to pass CTS. Hardware implementations
-    // should have significantly lower latency.
-    static constexpr int32_t kStandardLatencyMs = 85;
-    return hasMmapFlag(portConfig.flags.value()) ? kLowLatencyMs : kStandardLatencyMs;
+    return hasMmapFlag(portConfig.flags.value()) ? kLowLatencyMs : mStandardLatencyMs;
 }
 
 ndk::ScopedAStatus ModulePrimary::getFlushFromFrameSupport(const AudioPortConfig& in_config,

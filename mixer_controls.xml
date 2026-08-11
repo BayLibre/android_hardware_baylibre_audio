@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generic mixer controls configuration for BayLibre Audio HAL
+     This file defines the ALSA mixer control names for different functions.
+     The HAL will search for these controls in the order specified.
+     If a control is not found, that function will be unavailable.
+-->
+<mixerControls>
+    <!-- Master volume control (playback output) -->
+    <control function="MASTER_VOLUME" type="int">
+        <name>Master Playback Volume</name>
+    </control>
+
+    <!-- Master mute/switch control -->
+    <control function="MASTER_SWITCH" type="bool">
+        <name>Master Playback Switch</name>
+    </control>
+
+    <!-- Hardware volume control (per-device volume)
+         Multiple names can be specified, the first found will be used -->
+    <control function="HW_VOLUME" type="int">
+        <name>Headphone Playback Volume</name>
+        <name>Headset Playback Volume</name>
+        <name>PCM Playback Volume</name>
+        <name>Speaker Playback Volume</name>
+    </control>
+
+    <!-- Microphone mute/switch control -->
+    <control function="MIC_SWITCH" type="bool">
+        <name>Capture Switch</name>
+        <name>Mic Capture Switch</name>
+    </control>
+
+    <!-- Microphone gain control -->
+    <control function="MIC_GAIN" type="int">
+        <name>Capture Volume</name>
+        <name>Mic Capture Volume</name>
+    </control>
+</mixerControls>

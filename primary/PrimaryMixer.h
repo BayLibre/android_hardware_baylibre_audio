@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <string>
+
 #include "alsa/Mixer.h"
 
 namespace aidl::android::hardware::audio::core::primary {
@@ -24,13 +26,16 @@ class PrimaryMixer : public alsa::Mixer {
   public:
     static constexpr int kInvalidAlsaCard = -1;
     static constexpr int kInvalidAlsaDevice = -1;
-    static constexpr int kAlsaCard = 0;
-    static constexpr int kAlsaDevice = 0;
+    static constexpr int kDefaultAlsaCard = 0;
+    static constexpr int kDefaultAlsaDevice = 0;
 
     static PrimaryMixer& getInstance();
+    static int getAlsaCard();
+    static int getAlsaDevice();
+    static int findAlsaCardByName(const std::string& cardName);
 
   private:
-    PrimaryMixer() : alsa::Mixer(kAlsaCard) {}
+    PrimaryMixer();
 };
 
 }  // namespace aidl::android::hardware::audio::core::primary
