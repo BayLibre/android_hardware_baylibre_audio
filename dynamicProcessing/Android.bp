@@ -15,25 +15,20 @@
  */
 
 package {
-    default_team: "trendy_team_android_media_audio_framework",
-    // See: http://go/android-license-faq
-    // A large-scale-change added 'default_applicable_licenses' to import
-    // all of the 'license_kinds' from "hardware_interfaces_license"
-    // to get the below license kinds:
-    //   SPDX-license-identifier-Apache-2.0
-    default_applicable_licenses: ["hardware_interfaces_license"],
+    default_applicable_licenses: ["hardware_generic_audio_license"],
 }
 
 cc_library_shared {
-    name: "libdynamicsprocessingsw",
+    name: "libdynamicsprocessingsw_generic",
     defaults: [
-        "aidlaudioeffectservice_defaults",
+        "generic_aidlaudioeffectservice_defaults",
     ],
     srcs: [
         "DynamicsProcessingSw.cpp",
     ],
     relative_install_path: "soundfx",
     visibility: [
-        "//hardware/interfaces/audio/aidl/default",
+        "//hardware/baylibre/audio/apex/com.android.hardware.audio",
+        "//hardware/generic/audio/apex/com.android.hardware.audio",
     ],
 }

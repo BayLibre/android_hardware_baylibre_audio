@@ -74,8 +74,10 @@ int main() {
     ABinderProcess_startThreadPool();
 
     // Guaranteed log for b/210919187 and logd_integration_test
-    LOG(INFO) << "Init for Audio AIDL HAL";
+    LOG(INFO) << "Init for Generic Audio AIDL HAL";
 
+    // The set of modules and their ports comes entirely from the audio policy
+    // configuration, so adapting this HAL to a new platform is an XML-only change.
     AudioPolicyConfigXmlConverter audioPolicyConverter{
             ::android::audio_get_audio_policy_config_file()};
 
@@ -93,8 +95,11 @@ int main() {
     auto configs(audioPolicyConverter.releaseModuleConfigs());
     for (std::pair<std::string, std::unique_ptr<Module::Configuration>>& configPair : *configs) {
         std::string name = configPair.first;
+        LOG(INFO) << "Loading audio module: " << name;
         if (auto instance = createModule(name, std::move(configPair.second)); instance) {
             moduleInstances.push_back(std::move(instance));
+        } else {
+            LOG(WARNING) << "Failed to load audio module: " << name;
         }
     }
 
