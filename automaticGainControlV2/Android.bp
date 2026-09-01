@@ -28,7 +28,6 @@ cc_library_shared {
     ],
     relative_install_path: "soundfx",
     visibility: [
-        "//hardware/baylibre/audio/apex/com.android.hardware.audio",
         "//hardware/generic/audio/apex/com.android.hardware.audio",
     ],
 }
