@@ -29,20 +29,16 @@
 static const char* kDefaultConfigName = "audio_effects_config.xml";
 
 static inline std::string config_file_path() {
-    if constexpr (__ANDROID_VENDOR_API__ >= 202404) {
-        AApexInfo *apexInfo;
-        if (AApexInfo_create(&apexInfo) == AAPEXINFO_OK) {
-            std::string apexName(AApexInfo_getName(apexInfo));
-            AApexInfo_destroy(apexInfo);
-            std::string candidatePath("/apex/");
-            candidatePath.append(apexName).append("/etc/").append(kDefaultConfigName);
-            LOG(DEBUG) << __func__ << " effect lib path " << candidatePath;
-            if (access(candidatePath.c_str(), R_OK) == 0) {
-                return candidatePath;
-            }
+    AApexInfo *apexInfo;
+    if (AApexInfo_create(&apexInfo) == AAPEXINFO_OK) {
+        std::string apexName(AApexInfo_getName(apexInfo));
+        AApexInfo_destroy(apexInfo);
+        std::string candidatePath("/apex/");
+        candidatePath.append(apexName).append("/etc/").append(kDefaultConfigName);
+        LOG(DEBUG) << __func__ << " effect lib path " << candidatePath;
+        if (access(candidatePath.c_str(), R_OK) == 0) {
+            return candidatePath;
         }
-    } else {
-        LOG(DEBUG) << __func__ << " libapexsupport is not supported";
     }
     LOG(DEBUG) << __func__ << ": Unable to resolve config file path in APEX";
     return android::audio_find_readable_configuration_file(kDefaultConfigName);
