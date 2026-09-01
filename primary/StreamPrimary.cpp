@@ -177,10 +177,20 @@ bool StreamPrimary::isStubStream() {
 }
 
 // static
+StreamPrimary::AlsaDeviceId StreamPrimary::getConfiguredCardAndDeviceId() {
+    // Same selection as the mixer: card_name first, then the card index. Falling
+    // back to card 0 here would send the stream to whichever card probed first,
+    // which is not stable -- a USB webcam readily takes index 0.
+    const int card = primary::PrimaryMixer::getAlsaCard();
+    if (card == primary::PrimaryMixer::kInvalidAlsaCard) return kDefaultCardAndDeviceId;
+    return {card, primary::PrimaryMixer::getAlsaDevice()};
+}
+
+// static
 StreamPrimary::AlsaDeviceId StreamPrimary::getCardAndDeviceId(
         const std::vector<AudioDevice>& devices) {
     if (devices.empty() || devices[0].address.getTag() != AudioDeviceAddress::id) {
-        return kDefaultCardAndDeviceId;
+        return getConfiguredCardAndDeviceId();
     }
     std::string deviceAddress = devices[0].address.get<AudioDeviceAddress::id>();
     AlsaDeviceId cardAndDeviceId;
@@ -188,7 +198,7 @@ StreamPrimary::AlsaDeviceId StreamPrimary::getCardAndDeviceId(
         suffixPos == std::string::npos ||
         sscanf(deviceAddress.c_str() + suffixPos, "CARD_%d_DEV_%d", &cardAndDeviceId.first,
                &cardAndDeviceId.second) != 2) {
-        return kDefaultCardAndDeviceId;
+        return getConfiguredCardAndDeviceId();
     }
     LOG(DEBUG) << __func__ << ": parsed with card id " << cardAndDeviceId.first << ", device id "
                << cardAndDeviceId.second;

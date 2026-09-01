@@ -63,6 +63,7 @@ class StreamPrimary : public StreamAlsaMonoPipe {
     static constexpr StreamPrimary::AlsaDeviceId kStubDeviceId{
             primary::PrimaryMixer::kInvalidAlsaCard, primary::PrimaryMixer::kInvalidAlsaDevice};
 
+    static AlsaDeviceId getConfiguredCardAndDeviceId();
     static AlsaDeviceId getCardAndDeviceId(
             const std::vector<::aidl::android::media::audio::common::AudioDevice>& devices);
     static bool useStubStream(bool isInput,
