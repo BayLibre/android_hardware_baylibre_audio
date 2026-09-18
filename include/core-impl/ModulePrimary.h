@@ -52,6 +52,10 @@ class ModulePrimary final : public Module {
     int32_t getNominalLatencyMs(
             const ::aidl::android::media::audio::common::AudioPortConfig& portConfig) override;
 
+    ndk::ScopedAStatus populateConnectedDevicePort(
+            ::aidl::android::media::audio::common::AudioPort* audioPort,
+            int32_t nextPortId) override;
+
   private:
     ChildInterface<ITelephony> mTelephony;
     int32_t mStandardLatencyMs;

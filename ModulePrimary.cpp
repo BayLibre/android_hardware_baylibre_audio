@@ -35,6 +35,7 @@ using aidl::android::hardware::audio::common::hasMmapFlag;
 using aidl::android::hardware::audio::common::SinkMetadata;
 using aidl::android::hardware::audio::common::SourceMetadata;
 using aidl::android::hardware::audio::core::StreamDescriptor;
+using aidl::android::media::audio::common::AudioDeviceDescription;
 using aidl::android::media::audio::common::AudioInputFlags;
 using aidl::android::media::audio::common::AudioIoFlags;
 using aidl::android::media::audio::common::AudioOffloadInfo;
@@ -59,6 +60,16 @@ ModulePrimary::ModulePrimary(std::unique_ptr<Configuration>&& config)
     mStandardLatencyMs = ::android::base::GetIntProperty(
             "persist.vendor.audio.primary.latency_ms",
             ::android::base::GetIntProperty("ro.vendor.audio.primary.latency_ms", 85));
+}
+
+ndk::ScopedAStatus ModulePrimary::populateConnectedDevicePort(AudioPort* audioPort,
+                                                            int32_t nextPortId) {
+    if (audioPort->ext.getTag() == AudioPortExt::device &&
+        audioPort->ext.get<AudioPortExt::device>().device.type.connection ==
+                AudioDeviceDescription::CONNECTION_ANALOG) {
+        return ndk::ScopedAStatus::ok();
+    }
+    return Module::populateConnectedDevicePort(audioPort, nextPortId);
 }
 
 ndk::ScopedAStatus ModulePrimary::getTelephony(std::shared_ptr<ITelephony>* _aidl_return) {
